@@ -32,15 +32,19 @@ body {
 }
 
 .app {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 80px 1fr;
   height: 100%;
   gap: 18px;
   padding: 20px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
+  box-sizing: border-box;
   backdrop-filter: blur(10px);
   background: var(--glass);
   border: 1px solid var(--border);
@@ -51,6 +55,8 @@ body {
   align-items: center;
   padding: 14px 8px;
   gap: 12px;
+  min-height: 0;
+  height: 100%;
 }
 
 .brand {
@@ -80,15 +86,27 @@ body {
 }
 .side-btn:hover {
   transform: translateY(-2px);
-  border-color:#2ee59d66; 
+  border-color:#2ee59d66;
   color:var(--accent);
   box-shadow: 0 6px 12px #00000055, inset 0 0 12px #2ee59d1a;
   cursor:pointer;
 }
+.side-btn.active { color:var(--accent); border-color:#2ee59d88; background:#153126; }
 .side-spacer{ flex:1 }
+
+.notes-panel { position:fixed; inset:20px 20px 20px 118px; z-index:10; display:none; grid-template-rows:auto 1fr auto; padding:20px; background:#0b1217f5; border:1px solid #2ee59d55; border-radius:var(--radius); box-shadow:var(--shadow); }
+.notes-panel.open { display:grid; }
+.notes-header,.notes-actions { display:flex; align-items:center; gap:10px; }
+.notes-header { justify-content:space-between; margin-bottom:14px; }
+#notesInput { width:100%; resize:none; padding:16px; color:var(--txt); background:#081015; border:1px solid var(--border); border-radius:10px; outline:none; line-height:1.6; }
+.action-btn { border:1px solid #2ee59d44; border-radius:8px; padding:8px 12px; background:#102019; color:var(--txt); font:inherit; font-size:12px; cursor:pointer; }
+.action-btn:hover { color:var(--accent); border-color:#2ee59d88; }
+.notes-actions { justify-content:space-between; margin-top:12px; }
+.save-status { color:#7aa998; font-size:11px; }
 
 /* Terminal */
 .terminal {
+  box-sizing: border-box;
   display: grid;
   grid-template-rows: auto 1fr auto;
   backdrop-filter: blur(16px);
@@ -96,6 +114,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-header {
@@ -109,28 +130,81 @@ body {
 }
 
 .output {
-  padding: 18px 22px;
+  min-height: 0;
+  padding: 30px clamp(18px, 4vw, 64px) 38px;
   overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.45;
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 .output .msg {
-  background: #0e151bcc;
+  width: fit-content;
+  max-width: min(76%, 820px);
+  padding: 15px 18px;
+  margin: 0 0 22px;
+  border: 1px solid transparent;
   border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
+  font-size: clamp(13.5px, .35vw + 12px, 15px);
+  line-height: 1.65;
+  letter-spacing: .005em;
+  overflow-wrap: anywhere;
+  box-shadow: none;
 }
 .msg.user {
-  border-left: 3px solid #3498db;
-  color: #9acbff;
-  text-align: right;
+  margin-left: auto;
+  background: #172028;
+  border-color: #293640;
+  border-right: 2px solid #527b98;
+  color: #d1dce4;
+  text-align: left;
 }
 .msg.joia {
-  border-left: 3px solid #2ee59d;
-  color: var(--txt);
+  margin-right: auto;
+  padding-left: 17px;
+  background: transparent;
+  border-color: transparent;
+  border-left: 2px solid #4f8b75;
+  color: #d5dfdb;
 }
+.output .msg > b:first-child {
+  display: block;
+  margin-bottom: 7px;
+  color: #82b9a5;
+  font-size: .82em;
+  line-height: 1.25;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.output .msg.user > b:first-child {
+  color: #8eafc5;
+  text-align: right;
+}
+.output .msg.thinking > b:first-child {
+  display: inline;
+  margin: 0;
+}
+@media (max-width: 700px) {
+  .output { padding: 20px 12px 26px; }
+  .output .msg {
+    max-width: 95%;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+}
+.welcome { max-width:760px; margin:6vh auto 0; text-align:center; }
+.welcome-mark { font-size:42px; margin-bottom:8px; }
+.welcome h1 { color:#8cf0d3; font-size:24px; margin:0 0 10px; }
+.welcome p { color:#9ab9ad; line-height:1.65; }
+.icebreakers { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:20px; }
+.icebreaker { border:1px solid #2ee59d38; border-radius:999px; padding:9px 13px; background:#0b1217; color:#b8d8cc; font:inherit; font-size:11px; cursor:pointer; }
+.icebreaker:hover { border-color:#2ee59d88; color:var(--accent); transform:translateY(-1px); }
+.thinking { display:flex; align-items:center; gap:10px; color:#9ab9ad; }
+.thinking-dots span { display:inline-block; width:5px; height:5px; margin:0 2px; border-radius:50%; background:var(--accent); animation:thinking 1s infinite ease-in-out; }
+.thinking-dots span:nth-child(2) { animation-delay:.15s; }
+.thinking-dots span:nth-child(3) { animation-delay:.3s; }
+@keyframes thinking { 0%,80%,100% { opacity:.25; transform:translateY(0); } 40% { opacity:1; transform:translateY(-3px); } }
 
 .terminal-footer {
   padding: 12px 16px;
@@ -148,7 +222,7 @@ body {
   transition: border-color .2s ease, box-shadow .2s ease;
 }
 .input-wrap:focus-within {
-  border-color:#2ee59d70; 
+  border-color:#2ee59d70;
   box-shadow: 0 0 0 4px #2ee59d14;
 }
 .prompt {
@@ -177,28 +251,28 @@ body {
 <div class="app">
   <aside class="sidebar">
     <div class="brand">J🜲</div>
-    <div class="side-btn" title="Salvar"><i data-lucide="save"></i></div>
-    <div class="side-btn" title="Capturar"><i data-lucide="camera"></i></div>
-    <div class="side-btn" title="Compartilhar"><i data-lucide="share-2"></i></div>
-    <div class="side-btn" title="Ajuda"><i data-lucide="help-circle"></i></div>
+    <button class="side-btn" id="openNotes" title="Caderno de anotações" aria-label="Abrir caderno">📝</button>
+    <button class="side-btn" id="copyLast" title="Anotar última resposta" aria-label="Anotar última resposta">✚</button>
+    <button class="side-btn" id="downloadNotes" title="Baixar anotações" aria-label="Baixar anotações">⇩</button>
+    <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
-    <div class="side-btn" title="Preferências"><i data-lucide="settings"></i></div>
+    <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
   </aside>
 
   <main class="terminal">
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
-      <div style="color:#8cf0d3;">Node.js • React • Python • e mais</div>
+      <div style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
     </header>
 
     <section id="output" class="output">
-      <div class="msg joia">
-        <b style="color:#8cf0d3;">SISTEMA DE TREINAMENTO JOIA</b><br>
-        Versão 1.0 • Node.js, React, React Native, Python, TypeScript, JavaScript, Next.js, Flutter e API REST<br>
-        Desenvolvido com carinho por Professor João Carlos<br><br>
-        💎 A JOIA é uma inteligência educacional criada para ensinar de forma guiada e investigativa,<br>
-        com foco em raciocínio lógico, boas práticas e pensamento estruturado em programação.<br><br>
-        Olá! 💚 Qual é o seu nome, aprendiz de Java?
+      <div class="welcome" id="welcome">
+        <div class="welcome-mark">💎</div><h1>JOIA</h1>
+        <p>Sua parceira para aprender tecnologia com perguntas, pistas e descobertas.<br>Comece do seu jeito — nenhuma pergunta foi escolhida por você.</p>
+        <div class="icebreakers" aria-label="Sugestões para começar">
+          <button class="icebreaker">Quero entender um conceito</button><button class="icebreaker">Estou travado em um exercício</button>
+          <button class="icebreaker">Quero organizar meus estudos</button><button class="icebreaker">Pode me fazer um desafio?</button>
+        </div>
       </div>
     </section>
 
@@ -211,6 +285,12 @@ body {
   </main>
 </div>
 
+<section class="notes-panel" id="notesPanel" aria-label="Caderno de anotações">
+  <div class="notes-header"><b>📝 Meu caderno JOIA</b><button class="action-btn" id="closeNotes">Fechar</button></div>
+  <textarea id="notesInput" placeholder="Registre conceitos, dúvidas, exemplos e próximos passos..."></textarea>
+  <div class="notes-actions"><span class="save-status" id="saveStatus">Salvo automaticamente neste dispositivo</span><button class="action-btn" id="saveNotes">Salvar agora</button></div>
+</section>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script>
@@ -220,8 +300,14 @@ const apiUrl = "teste_openai.php";
 const output = document.getElementById("output");
 const userInput = document.getElementById("userInput");
 const profile = JSON.parse(localStorage.getItem("joia_profile") || '{}');
+const notesPanel = document.getElementById("notesPanel");
+const notesInput = document.getElementById("notesInput");
+const saveStatus = document.getElementById("saveStatus");
+let lastJoiaAnswer = "";
+notesInput.value = localStorage.getItem("joia_notes") || "";
 
 function renderMessage(text, sender){
+  document.getElementById("welcome")?.remove();
   const div = document.createElement("div");
   div.className = "msg " + sender;
   const label = document.createElement("b");
@@ -233,12 +319,41 @@ function renderMessage(text, sender){
   output.scrollTop = output.scrollHeight;
 }
 
+function showThinking(){
+  const div = document.createElement("div");
+  div.className = "msg joia thinking";
+  div.id = "thinking";
+  div.innerHTML = '<b>JOIA:</b> Pensando igual Profe João <span class="thinking-dots"><span></span><span></span><span></span></span>';
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}
+
+async function renderTypedMessage(text){
+  document.getElementById("thinking")?.remove();
+  const div = document.createElement("div");
+  div.className = "msg joia";
+  div.style.whiteSpace = "pre-wrap";
+  const label = document.createElement("b");
+  label.textContent = "JOIA: ";
+  const content = document.createTextNode("");
+  div.append(label, content);
+  output.appendChild(div);
+  const step = Math.max(1, Math.ceil(text.length / 80));
+  for(let i = 0; i < text.length; i += step){
+    content.nodeValue += text.slice(i, i + step);
+    output.scrollTop = output.scrollHeight;
+    await new Promise(resolve => setTimeout(resolve, 12));
+  }
+  lastJoiaAnswer = text;
+}
+
 async function sendMsg(){
   const msg = userInput.value.trim();
   if(!msg) return;
   renderMessage(msg, "user");
   userInput.value = "";
   userInput.disabled = true;
+  showThinking();
   try {
     const res = await fetch(apiUrl,{
       method:"POST",
@@ -251,14 +366,46 @@ async function sendMsg(){
     if (data.etapa === "turma") profile.linguagem = data.valor;
     if (data.etapa === "conversa" && data.valor) profile.turma = data.valor;
     localStorage.setItem("joia_profile", JSON.stringify(profile));
-    renderMessage(data.resposta, "joia");
+    await renderTypedMessage(data.resposta);
   } catch (error) {
-    renderMessage(`⚠️ ${error.message}`, "joia");
+    document.getElementById("thinking")?.remove();
+    await renderTypedMessage(`⚠️ ${error.message}`);
   } finally {
     userInput.disabled = false;
     userInput.focus();
   }
 }
+
+function saveNotes(){
+  localStorage.setItem("joia_notes", notesInput.value);
+  saveStatus.textContent = "Anotações salvas agora ✓";
+  setTimeout(() => saveStatus.textContent = "Salvo automaticamente neste dispositivo", 1800);
+}
+
+document.getElementById("openNotes").addEventListener("click", () => { notesPanel.classList.add("open"); notesInput.focus(); });
+document.getElementById("closeNotes").addEventListener("click", () => notesPanel.classList.remove("open"));
+document.getElementById("saveNotes").addEventListener("click", saveNotes);
+notesInput.addEventListener("input", saveNotes);
+document.getElementById("copyLast").addEventListener("click", () => {
+  if(!lastJoiaAnswer) return alert("Converse com a JOIA antes de anotar uma resposta.");
+  notesInput.value += `${notesInput.value ? "\n\n" : ""}💎 Resposta da JOIA\n${lastJoiaAnswer}`;
+  saveNotes(); notesPanel.classList.add("open");
+});
+document.getElementById("downloadNotes").addEventListener("click", () => {
+  if(!notesInput.value.trim()) return alert("Seu caderno ainda está vazio.");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([notesInput.value], {type:"text/plain;charset=utf-8"}));
+  link.download = "anotacoes-joia.txt"; link.click(); URL.revokeObjectURL(link.href);
+});
+document.getElementById("clearNotes").addEventListener("click", () => {
+  if(confirm("Deseja apagar todas as anotações deste dispositivo?")){ notesInput.value = ""; saveNotes(); }
+});
+document.getElementById("newConversation").addEventListener("click", () => {
+  if(confirm("Iniciar uma nova conversa e um novo cadastro?")){ localStorage.removeItem("joia_profile"); location.reload(); }
+});
+document.querySelectorAll(".icebreaker").forEach(button => button.addEventListener("click", () => {
+  userInput.value = button.textContent; userInput.focus();
+}));
 
 userInput.addEventListener("keydown", e=>{
   if(e.key==="Enter") sendMsg();

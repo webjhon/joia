@@ -1,0 +1,5 @@
+# Impede que arquivos de configuração e outros arquivos ocultos sejam servidos
+# diretamente pelo Apache/LiteSpeed usado em hospedagens compartilhadas.
+<FilesMatch "^\.env(?:\..*)?$">
+    Require all denied
+</FilesMatch>

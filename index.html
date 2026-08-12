@@ -188,17 +188,17 @@ body {
   <main class="terminal">
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
-      <div style="color:#8cf0d3;">Java • Maven • NetBeans</div>
+      <div style="color:#8cf0d3;">Node.js • React • Python • e mais</div>
     </header>
 
     <section id="output" class="output">
       <div class="msg joia">
         <b style="color:#8cf0d3;">SISTEMA DE TREINAMENTO JOIA</b><br>
-        Especialista em Java, Maven e NetBeans<br>
+        Versão 1.0 • Node.js, React, React Native, Python, TypeScript, JavaScript, Next.js, Flutter e API REST<br>
         Desenvolvido com carinho por Professor João Carlos<br><br>
         💎 A JOIA é uma inteligência educacional criada para ensinar de forma guiada e investigativa,<br>
         com foco em raciocínio lógico, boas práticas e pensamento estruturado em programação.<br><br>
-        Pronta para iniciar seu funcionamento.
+        Olá! 💚 Qual é o seu nome, aprendiz de Java?
       </div>
     </section>
 
@@ -219,11 +219,16 @@ lucide.createIcons();
 const apiUrl = "teste_openai.php";
 const output = document.getElementById("output");
 const userInput = document.getElementById("userInput");
+const profile = JSON.parse(localStorage.getItem("joia_profile") || '{}');
 
 function renderMessage(text, sender){
   const div = document.createElement("div");
   div.className = "msg " + sender;
-  div.innerHTML = text;
+  const label = document.createElement("b");
+  label.textContent = sender === "user" ? "Você: " : "JOIA: ";
+  div.appendChild(label);
+  div.appendChild(document.createTextNode(text));
+  div.style.whiteSpace = "pre-wrap";
   output.appendChild(div);
   output.scrollTop = output.scrollHeight;
 }
@@ -231,15 +236,28 @@ function renderMessage(text, sender){
 async function sendMsg(){
   const msg = userInput.value.trim();
   if(!msg) return;
-  renderMessage(`<b>Você:</b> ${msg}`, "user");
+  renderMessage(msg, "user");
   userInput.value = "";
-  const res = await fetch(apiUrl,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({mensagem:msg})
-  });
-  const data = await res.json();
-  renderMessage(data.resposta, "joia");
+  userInput.disabled = true;
+  try {
+    const res = await fetch(apiUrl,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({mensagem:msg, aluno:profile.aluno, linguagem:profile.linguagem, turma:profile.turma})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.erro || "Não foi possível conversar com a JOIA.");
+    if (data.etapa === "linguagem") profile.aluno = data.valor;
+    if (data.etapa === "turma") profile.linguagem = data.valor;
+    if (data.etapa === "conversa" && data.valor) profile.turma = data.valor;
+    localStorage.setItem("joia_profile", JSON.stringify(profile));
+    renderMessage(data.resposta, "joia");
+  } catch (error) {
+    renderMessage(`⚠️ ${error.message}`, "joia");
+  } finally {
+    userInput.disabled = false;
+    userInput.focus();
+  }
 }
 
 userInput.addEventListener("keydown", e=>{

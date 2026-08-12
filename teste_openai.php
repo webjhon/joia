@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config/environment.php';
-
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -62,12 +60,40 @@ function systemPrompt(): string
         . $training;
 }
 
+/**
+ * Prioriza a variável fornecida pelo servidor e usa a configuração local
+ * não versionada apenas como fallback.
+ */
+function openAIApiKey(): string
+{
+    $serverKey = getenv('OPENAI_API_KEY');
+    if ($serverKey !== false && trim($serverKey) !== '') {
+        return trim($serverKey);
+    }
+
+    $configPath = dirname(__DIR__, 2) . '/config.local.php';
+    if (!is_file($configPath) || !is_readable($configPath)) {
+        throw new RuntimeException(
+            'Chave da OpenAI não configurada. Crie config.local.php fora da pasta public_html.'
+        );
+    }
+
+    $config = require $configPath;
+    if (!is_array($config)) {
+        throw new RuntimeException('O arquivo config.local.php possui um formato inválido.');
+    }
+
+    $localKey = trim((string) ($config['OPENAI_API_KEY'] ?? ''));
+    if ($localKey === '') {
+        throw new RuntimeException('A chave da OpenAI está vazia em config.local.php.');
+    }
+
+    return $localKey;
+}
+
 function callOpenAI(array $messages): string
 {
-    $apiKey = trim((string) getenv('OPENAI_API_KEY'));
-    if ($apiKey === '') {
-        throw new RuntimeException('OPENAI_API_KEY não configurada no servidor.');
-    }
+    $apiKey = openAIApiKey();
 
     $payload = json_encode([
         'model' => OPENAI_MODEL,

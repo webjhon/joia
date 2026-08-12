@@ -99,7 +99,7 @@ function callOpenAI(array $messages): string
         'model' => OPENAI_MODEL,
         'messages' => $messages,
         'temperature' => 0.45,
-        'max_tokens' => 450,
+        'max_tokens' => 700,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
     $ch = curl_init(OPENAI_ENDPOINT);

@@ -32,15 +32,19 @@ body {
 }
 
 .app {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 80px 1fr;
   height: 100%;
   gap: 18px;
   padding: 20px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
+  box-sizing: border-box;
   backdrop-filter: blur(10px);
   background: var(--glass);
   border: 1px solid var(--border);
@@ -51,6 +55,8 @@ body {
   align-items: center;
   padding: 14px 8px;
   gap: 12px;
+  min-height: 0;
+  height: 100%;
 }
 
 .brand {
@@ -100,6 +106,7 @@ body {
 
 /* Terminal */
 .terminal {
+  box-sizing: border-box;
   display: grid;
   grid-template-rows: auto 1fr auto;
   backdrop-filter: blur(16px);
@@ -107,6 +114,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-header {
@@ -120,7 +130,8 @@ body {
 }
 
 .output {
-  padding: 28px clamp(18px, 3vw, 42px) 34px;
+  min-height: 0;
+  padding: 30px clamp(18px, 4vw, 64px) 38px;
   overflow-y: auto;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
@@ -128,43 +139,44 @@ body {
 
 .output .msg {
   width: fit-content;
-  max-width: min(78%, 860px);
-  padding: 16px 20px;
-  margin: 0 0 18px;
+  max-width: min(76%, 820px);
+  padding: 15px 18px;
+  margin: 0 0 22px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: clamp(13.5px, .35vw + 12px, 15px);
   line-height: 1.65;
   letter-spacing: .005em;
   overflow-wrap: anywhere;
-  box-shadow: 0 5px 16px #00000026;
+  box-shadow: none;
 }
 .msg.user {
   margin-left: auto;
-  background: linear-gradient(145deg, #10202cdb, #0d1922e8);
-  border-color: #3498db3d;
-  border-right: 3px solid #4aa9e9;
-  color: #b8dcff;
+  background: #172028;
+  border-color: #293640;
+  border-right: 2px solid #527b98;
+  color: #d1dce4;
   text-align: left;
 }
 .msg.joia {
   margin-right: auto;
-  background: linear-gradient(145deg, #101b19ed, #0d1617e8);
-  border-color: #2ee59d30;
-  border-left: 3px solid #2ee59d;
-  color: #d9eee6;
+  padding-left: 17px;
+  background: transparent;
+  border-color: transparent;
+  border-left: 2px solid #4f8b75;
+  color: #d5dfdb;
 }
 .output .msg > b:first-child {
   display: block;
   margin-bottom: 7px;
-  color: #8cf0d3;
+  color: #82b9a5;
   font-size: .82em;
   line-height: 1.25;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
 .output .msg.user > b:first-child {
-  color: #86c5f2;
+  color: #8eafc5;
   text-align: right;
 }
 .output .msg.thinking > b:first-child {

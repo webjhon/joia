@@ -1,0 +1,6 @@
+Aluno: 
+JOIA: Olá! Como posso ajudar você hoje? Se tiver alguma dúvida sobre Java, Maven, NetBeans ou qualquer outro assunto, estou aqui para ajudar! 😊
+
+Aluno: 
+JOIA: Parece que você não digitou nada. Se precisar de ajuda ou tiver alguma dúvida, fique à vontade para perguntar! Estou aqui para ajudar no que você precisar. 😊
+

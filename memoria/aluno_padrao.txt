@@ -1,0 +1,60 @@
+[03/11/2025 17:23:02]
+Aluno: João Carlos
+JOIA: Olá João Carlos 💚! Que prazer te conhecer! Como posso te ajudar na sua jornada com Java, Maven e NetBeans hoje?
+
+[03/11/2025 17:23:20]
+Aluno: poderia me dar um código getter de java pra eu entender por favor?
+JOIA: Eu entendo o que você sente, e quero caminhar contigo nessa. Em vez de te dar um código pronto, que tal explorarmos juntos o que é um getter? 
+
+Você sabe o que um getter faz e por que ele é importante em uma classe?
+
+[03/11/2025 17:23:37]
+Aluno: Não sei, poderia me ajudar?
+JOIA: Claro, João Carlos! Vamos lá. Um getter é um método que permite acessar o valor de um atributo privado de uma classe. Ele é uma parte fundamental do encapsulamento em Java, que é uma das características da programação orientada a objetos.
+
+Agora, me diga: por que você acha que é importante ter métodos getter em uma classe? O que você imagina que aconteceria se não os tivéssemos?
+
+[03/11/2025 17:24:14]
+Aluno: Para acesssar os atributos mais facilmente, porém não tenho ideias de por onde começar.
+JOIA: Você está no caminho certo ao pensar que os getters permitem acessar atributos de forma mais fácil e segura! Mas vamos aprofundar um pouco mais. 
+
+Se você fosse criar uma classe chamada `Pessoa`, por exemplo, quais atributos você imaginaria que ela teria? E como você poderia usar um getter para acessar um desses atributos? Vamos pensar juntos!
+
+[03/11/2025 17:26:25]
+Aluno: Nome, CPF, ID.
+JOIA: Ótimo, João Carlos! Você escolheu atributos muito relevantes para a classe `Pessoa`. Agora, vamos pensar um pouco mais sobre isso. 
+
+Como você imagina que seria a estrutura da sua classe `Pessoa`? E, para cada um desses atributos, como você poderia criar um método getter? O que você acha que deveria ser o nome do método para acessar, por exemplo, o atributo `nome`? Vamos explorar isso juntos!
+
+[03/11/2025 17:27:03]
+Aluno: Penso que seria uma classe, não sei explicar, e como criar o getter eu não sei.
+JOIA: Entendo, João Carlos! Vamos desmembrar isso para ficar mais claro. 
+
+Sim, a `Pessoa` é uma classe, e dentro dela você terá os atributos que mencionou, como `nome`, `cpf` e `id`. Agora, para cada um desses atributos, você vai querer criar um método getter que permita acessar seu valor de fora da classe.
+
+O que você acha que deveria ser o nome do método getter para o atributo `nome`? Lembre-se de que uma prática comum em Java é começar o nome do método com "get" seguido do nome do atributo com a primeira letra maiúscula. Que tal tentarmos isso juntos?
+
+[03/11/2025 17:27:26]
+Aluno: getNome?
+JOIA: Perfeito! Você acertou em cheio! O nome do método getter para o atributo `nome` realmente seria `getNome()`. Agora, vamos um pouco mais além. 
+
+O que você imagina que esse método `getNome()` deveria retornar? E como você o veria dentro da estrutura da classe `Pessoa`? Vamos construir isso juntos!
+
+[03/11/2025 17:27:43]
+Aluno: Ele deveria retornar o nome?
+JOIA: Exatamente, João Carlos! O método `getNome()` deve retornar o valor do atributo `nome`. Agora, vamos pensar na estrutura da sua classe `Pessoa`. 
+
+Como você imagina que seria a implementação desse método dentro da classe? Que tipo de código você acha que seria necessário para que o `getNome()` retornasse o nome corretamente? Vamos tentar visualizar isso juntos!
+
+[03/11/2025 17:29:45]
+Aluno: João Carlos
+JOIA: Olá, João Carlos! 💚 Como você está se sentindo hoje em relação ao seu aprendizado de Java? Vamos continuar explorando a implementação do método `getNome()` na sua classe `Pessoa`. O que você imagina que precisaria escrever dentro do método para que ele retornasse o nome corretamente? Vamos pensar juntos!
+
+[03/11/2025 17:30:46]
+Aluno: alunoteste
+JOIA: Olá, João Carlos! 💚 Que bom te ver por aqui novamente! Como posso te ajudar na sua jornada com Java, Maven e NetBeans hoje? Você gostaria de continuar explorando a classe `Pessoa` e o método `getNome()` ou tem algum outro tópico em mente?
+
+[03/11/2025 17:31:08]
+Aluno: Pedro Henrique
+JOIA: Olá Pedro Henrique 💚! Que bom te conhecer! Como posso te ajudar na sua jornada com Java, Maven e NetBeans hoje? Você gostaria de continuar explorando a classe `Pessoa` e o método `getNome()`, ou tem algum outro assunto em mente?
+

@@ -43,9 +43,13 @@ versionados, logs ou mensagens de erro.
 
 ## Funcionamento
 
-- Nome, tecnologia e turma são coletados sem chamada à API, economizando tokens.
-- O histórico persistente é identificado por hash do nome do aluno.
+- O modelo interrompe a primeira dúvida para explicar e conduzir um cadastro natural
+  com nome, turma/curso e instituição, evitando confundir alunos em computadores
+  compartilhados. Cada aba recebe uma conversa isolada e há uma ação de novo cadastro.
+- Cada aluno recebe um identificador aleatório independente de nome ou turma; os dados
+  humanos e o histórico ficam em um registro versionado dentro de `memoria/`.
 - Em conversas comuns, apenas as 12 mensagens mais recentes são enviadas à API.
-- O histórico completo é usado apenas no comando especial `iProgram.ger`.
+- O comando docente `iProgram.ger` exige token, lista apenas dados humanos dos alunos
+  e gera, sob demanda, diagnóstico pedagógico e relatório PDF para download.
 - O conteúdo de `treinamento.txt` é carregado como instrução de sistema em cada
   solicitação, mantendo as regras pedagógicas em um único lugar.

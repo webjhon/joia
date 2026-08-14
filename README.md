@@ -24,10 +24,12 @@ orientações pedagógicas de `treinamento.txt`.
    preenchido, **fora de `public_html`**. Não é necessário editar `.env` nem
    `.htaccess` pelo painel. Se disponível, defina a permissão do arquivo como
    `600` (ou `640` se `600` impedir a leitura pelo PHP).
-4. Confirme que `config.local.php` está exatamente dois níveis acima da pasta em
-   que está `teste_openai.php`. O código resolve esse local com
-   `dirname(__DIR__, 2)`, sem caminho absoluto nem nome de usuário fixo. Nunca envie
-   o arquivo real ao GitHub nem compartilhe seu conteúdo.
+4. Confirme que `config.local.php` está exatamente dois níveis acima da pasta
+   `joia`. Por exemplo, para
+   `/home/usuario/domains/site/public_html/joia/teste_openai.php`, o arquivo deve
+   estar em `/home/usuario/domains/site/config.local.php`. O código resolve esse
+   local com `dirname(__DIR__, 2)`, sem caminho absoluto nem nome de usuário fixo.
+   Nunca envie o arquivo real ao GitHub nem compartilhe seu conteúdo.
 5. Garanta que a extensão PHP cURL esteja habilitada e que o usuário do servidor
    possa escrever no diretório `memoria/`.
 6. Acesse a aplicação. Para desenvolvimento local, execute

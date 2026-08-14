@@ -1,7 +1,36 @@
 <?php
 declare(strict_types=1);
 
-session_start();
+// Mesmo um erro de inicialização deve chegar ao navegador como JSON. Sem isso, uma
+// falha do PHP/Hostinger produz uma resposta vazia e o frontend acusa apenas
+// "Unexpected end of JSON input", escondendo a causa real.
+ini_set('display_errors', '0');
+register_shutdown_function(static function (): void {
+    $error = error_get_last();
+    if ($error === null || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+    }
+    error_log('JOIA/Fatal: ' . $error['message'] . ' em ' . $error['file'] . ':' . $error['line']);
+    echo json_encode(['erro' => 'O servidor não conseguiu iniciar a JOIA. Consulte o log de erros do PHP.'], JSON_UNESCAPED_UNICODE);
+});
+
+set_exception_handler(static function (Throwable $error): void {
+    error_log('JOIA/Exceção: ' . $error->getMessage());
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+    }
+    echo json_encode(['erro' => 'Não foi possível iniciar a conversa. Verifique a configuração do servidor.'], JSON_UNESCAPED_UNICODE);
+    exit;
+});
+
+if (session_status() !== PHP_SESSION_ACTIVE && !session_start()) {
+    throw new RuntimeException('Não foi possível iniciar a sessão PHP.');
+}
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -20,7 +49,7 @@ function respond(array $payload, int $status = 200): never
 
 function normalize(string $value): string
 {
-    $value = mb_strtolower(trim($value), 'UTF-8');
+    $value = function_exists('mb_strtolower') ? mb_strtolower(trim($value), 'UTF-8') : strtolower(trim($value));
     $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
     return trim(preg_replace('/[^a-z0-9]+/', ' ', $ascii !== false ? $ascii : $value) ?? '');
 }
@@ -76,8 +105,11 @@ function openAIApiKey(): string
 {
     $serverKey = getenv('OPENAI_API_KEY');
     if ($serverKey !== false && trim($serverKey) !== '') return trim($serverKey);
-    $configPath = dirname(__DIR__, 2) . '/config.local.php';
-    if (!is_file($configPath) || !is_readable($configPath)) throw new RuntimeException('Chave da OpenAI não configurada.');
+    // Em produção: .../public_html/joia/teste_openai.php ->
+    // .../config.local.php (dois diretórios acima da pasta joia).
+    $configPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'config.local.php';
+    if (!is_file($configPath)) throw new RuntimeException('config.local.php não encontrado dois diretórios acima da pasta joia.');
+    if (!is_readable($configPath)) throw new RuntimeException('O servidor não possui permissão para ler config.local.php.');
     $config = require $configPath;
     $key = is_array($config) ? trim((string) ($config['OPENAI_API_KEY'] ?? '')) : '';
     if ($key === '') throw new RuntimeException('A chave da OpenAI está vazia em config.local.php.');
@@ -86,6 +118,7 @@ function openAIApiKey(): string
 
 function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false): string
 {
+    if (!function_exists('curl_init')) throw new RuntimeException('A extensão PHP cURL não está habilitada no servidor.');
     $body = ['model' => OPENAI_MODEL, 'messages' => $messages, 'temperature' => 0.35, 'max_tokens' => $maxTokens];
     if ($json) $body['response_format'] = ['type' => 'json_object'];
     $ch = curl_init(OPENAI_ENDPOINT);
@@ -188,7 +221,8 @@ $input = json_decode((string) file_get_contents('php://input'), true) ?: [];
 $message = trim((string) ($input['mensagem'] ?? '')); $conversationId = preg_replace('/[^a-zA-Z0-9-]/', '', (string) ($input['conversation_id'] ?? ''));
 if ($conversationId === '' || strlen($conversationId) > 80) respond(['erro' => 'Conversa inválida.'], 422);
 if (($input['acao'] ?? '') === 'reset') { unset($_SESSION['conversations'][$conversationId]); respond(['resposta' => 'Nova conversa iniciada.', 'etapa' => 'reset']); }
-if ($message === '' || mb_strlen($message, 'UTF-8') > MAX_MESSAGE_LENGTH) respond(['erro' => 'Digite uma mensagem válida para continuar.'], 422);
+$messageLength = function_exists('mb_strlen') ? mb_strlen($message, 'UTF-8') : strlen($message);
+if ($message === '' || $messageLength > MAX_MESSAGE_LENGTH) respond(['erro' => 'Digite uma mensagem válida para continuar.'], 422);
 $state = conversation($conversationId);
 
 try {

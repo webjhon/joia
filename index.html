@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+<!-- Versão 1.1. -->
+<meta name="application-version" content="1.1" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -371,8 +373,15 @@ async function sendMsg(){
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({mensagem:msg, conversation_id:conversationId})
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.erro || "Não foi possível conversar com a JOIA.");
+    const responseText = await res.text();
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : null;
+    } catch {
+      throw new Error(`O servidor retornou uma resposta inválida (HTTP ${res.status}). Verifique o log de erros do PHP.`);
+    }
+    if (!data) throw new Error(`O servidor não retornou conteúdo (HTTP ${res.status}). Verifique o log de erros do PHP.`);
+    if (!res.ok) throw new Error(data.erro || data.resposta || "Não foi possível conversar com a JOIA.");
     await renderTypedMessage(data.resposta, data.download || "");
   } catch (error) {
     document.getElementById("thinking")?.remove();

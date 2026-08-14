@@ -1,63 +1,85 @@
-# JOIA
+<div align="center">
 
-**Versão atual: 1.6**
+# 💎 JOIA
 
-Assistente educacional de programação que usa a API da OpenAI e segue as
-orientações pedagógicas de `treinamento.txt`.
+### Inteligência artificial a serviço de uma aprendizagem mais humana
 
-## Configuração na Hostinger
+**Educação · Programação · Acompanhamento · Autonomia**
 
-1. Revogue qualquer chave que já tenha sido publicada no código ou no histórico
-   do Git e crie uma nova chave no painel da OpenAI.
-2. No seu computador, faça uma cópia de `config.local.example.php` com o nome
-   exato `config.local.php` e preencha a chave somente nessa cópia:
+</div>
 
-   ```php
-   <?php
-   declare(strict_types=1);
+---
 
-   return [
-       'OPENAI_API_KEY' => 'sua-chave-real',
-   ];
-   ```
+## Sobre o projeto
 
-3. No hPanel da Hostinger, abra **Sites > Gerenciar > Gerenciador de Arquivos**.
-   Acesse a pasta que contém `public_html` e envie ali o `config.local.php` já
-   preenchido, **fora de `public_html`**. Não é necessário editar `.env` nem
-   `.htaccess` pelo painel. Se disponível, defina a permissão do arquivo como
-   `600` (ou `640` se `600` impedir a leitura pelo PHP).
-4. Confirme que `config.local.php` está exatamente dois níveis acima da pasta
-   `joia`. Por exemplo, para
-   `/home/usuario/domains/site/public_html/joia/teste_openai.php`, o arquivo deve
-   estar em `/home/usuario/domains/site/config.local.php`. O código resolve esse
-   local com `dirname(__DIR__, 2)`, sem caminho absoluto nem nome de usuário fixo.
-   Nunca envie o arquivo real ao GitHub nem compartilhe seu conteúdo.
-5. Garanta que a extensão PHP cURL esteja habilitada e que o usuário do servidor
-   possa escrever no diretório `memoria/`.
-   O backend evita recursos exclusivos do PHP 8 para continuar compatível com
-   instalações Hostinger que ainda executam PHP 7.4.
-6. Acesse a aplicação. Para desenvolvimento local, execute
-   `php -S localhost:8000` e abra `http://localhost:8000`.
+A **JOIA** é uma assistente educacional criada para apoiar estudantes em suas
+experiências com programação e inteligência artificial. Mais do que entregar
+respostas, o projeto busca transformar dúvidas em oportunidades de aprendizado,
+conduzindo cada aluno por um caminho de investigação, reflexão e descoberta.
 
-O backend tenta primeiro `getenv('OPENAI_API_KEY')`, caso a hospedagem já forneça
-a variável. Somente quando ela não existe ou está vazia, carrega
-`config.local.php` dois níveis acima da pasta do projeto. Se o arquivo estiver ausente,
-inválido ou com a chave vazia,
-a API retorna um erro tratado sem expor a chave. A chave permanece exclusivamente
-no PHP do servidor: nunca a coloque no HTML, no JavaScript, em arquivos
-versionados, logs ou mensagens de erro.
+Sua proposta combina a agilidade da IA com uma orientação pedagógica próxima.
+Cada conversa considera o contexto do estudante e favorece explicações graduais,
+pistas e perguntas que estimulem o raciocínio — sem substituir o processo de
+aprender.
 
-## Funcionamento
+## Propósito
 
-- O modelo interrompe a primeira dúvida para explicar e conduzir um cadastro natural
-  com nome, turma/curso e instituição, evitando confundir alunos em computadores
-  compartilhados. Cada aba recebe uma conversa isolada e há uma ação de novo cadastro.
-- Cada aluno recebe um identificador aleatório independente de nome ou turma; os dados
-  humanos e o histórico ficam em um registro versionado dentro de `memoria/`.
-- Em conversas comuns, apenas as 12 mensagens mais recentes são enviadas à API.
-- O comando docente `iProgram.ger` exige token, lista apenas dados humanos dos alunos
-  e gera, sob demanda, diagnóstico pedagógico e relatório PDF A4 diagramado, com
-  seções, parágrafos, listas, tipografia e caracteres acentuados para download.
-- Os conteúdos de `treinamento.txt` e `NEGATIVEPROMPTS.TXT` são carregados em toda
-  chamada ao modelo. O segundo documento registra comportamentos que não podem
-  ocorrer, especialmente repetições, regressões de cadastro e exigências de formato.
+O projeto nasceu do desejo de tornar o uso da inteligência artificial em sala de
+aula mais **consciente, orientado e significativo**. A JOIA procura ajudar o
+estudante a desenvolver autonomia, ao mesmo tempo que oferece ao professor uma
+visão mais clara de sua trajetória.
+
+Seus princípios são:
+
+- **orientar antes de responder**, valorizando a construção do conhecimento;
+- **respeitar o ritmo de cada estudante**, reconhecendo diferentes formas de
+  aprender;
+- **incentivar a curiosidade**, a experimentação e o pensamento crítico;
+- **aproximar professor, aluno e tecnologia** sem perder o cuidado humano;
+- **acompanhar a evolução**, fazendo de cada tentativa uma parte importante da
+  aprendizagem.
+
+## Uma experiência de acompanhamento
+
+A JOIA mantém cada jornada de aprendizagem organizada individualmente. Ao longo
+das conversas, ela reúne elementos que ajudam a compreender dúvidas, avanços e
+pontos que ainda merecem atenção.
+
+Esse acompanhamento permite que a inteligência artificial atue como apoio ao
+estudo, enquanto o olhar do educador continua no centro das decisões
+pedagógicas. Assim, tecnologia e docência trabalham juntas para oferecer uma
+orientação mais intencional e próxima.
+
+## Versionamento
+
+O projeto utiliza **Git** para registrar sua história e preservar a evolução de
+cada etapa. As versões públicas seguem uma numeração simples e progressiva,
+facilitando a identificação de mudanças relevantes na experiência, nas
+orientações pedagógicas e nos recursos de acompanhamento.
+
+> **Versão atual: 1.6**
+
+Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
+funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
+dos fluxos e a coerência da proposta educacional.
+
+## Desenvolvedor
+
+### Joçao Carlos de Moura dos Santos
+
+Professor do **SENAC de Ijuí**, Joçao Carlos de Moura dos Santos desenvolveu a
+JOIA a partir de seu interesse em acompanhar de maneira mais orientada os alunos
+em suas aventuras com a inteligência artificial.
+
+Sua iniciativa parte da convicção de que a IA pode ampliar possibilidades na
+educação quando utilizada com propósito, mediação e responsabilidade. A JOIA é,
+portanto, um encontro entre prática docente, tecnologia e o compromisso de
+ajudar estudantes a aprender com mais confiança e autonomia.
+
+---
+
+<div align="center">
+
+**JOIA** — aprender com tecnologia, crescer com orientação.
+
+</div>

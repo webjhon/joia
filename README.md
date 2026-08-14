@@ -24,12 +24,16 @@ orientações pedagógicas de `treinamento.txt`.
    preenchido, **fora de `public_html`**. Não é necessário editar `.env` nem
    `.htaccess` pelo painel. Se disponível, defina a permissão do arquivo como
    `600` (ou `640` se `600` impedir a leitura pelo PHP).
-4. Confirme que `config.local.php` está exatamente dois níveis acima da pasta em
-   que está `teste_openai.php`. O código resolve esse local com
-   `dirname(__DIR__, 2)`, sem caminho absoluto nem nome de usuário fixo. Nunca envie
-   o arquivo real ao GitHub nem compartilhe seu conteúdo.
+4. Confirme que `config.local.php` está exatamente dois níveis acima da pasta
+   `joia`. Por exemplo, para
+   `/home/usuario/domains/site/public_html/joia/teste_openai.php`, o arquivo deve
+   estar em `/home/usuario/domains/site/config.local.php`. O código resolve esse
+   local com `dirname(__DIR__, 2)`, sem caminho absoluto nem nome de usuário fixo.
+   Nunca envie o arquivo real ao GitHub nem compartilhe seu conteúdo.
 5. Garanta que a extensão PHP cURL esteja habilitada e que o usuário do servidor
    possa escrever no diretório `memoria/`.
+   O backend evita recursos exclusivos do PHP 8 para continuar compatível com
+   instalações Hostinger que ainda executam PHP 7.4.
 6. Acesse a aplicação. Para desenvolvimento local, execute
    `php -S localhost:8000` e abra `http://localhost:8000`.
 
@@ -43,9 +47,13 @@ versionados, logs ou mensagens de erro.
 
 ## Funcionamento
 
-- Nome, tecnologia e turma são coletados sem chamada à API, economizando tokens.
-- O histórico persistente é identificado por hash do nome do aluno.
+- O modelo interrompe a primeira dúvida para explicar e conduzir um cadastro natural
+  com nome, turma/curso e instituição, evitando confundir alunos em computadores
+  compartilhados. Cada aba recebe uma conversa isolada e há uma ação de novo cadastro.
+- Cada aluno recebe um identificador aleatório independente de nome ou turma; os dados
+  humanos e o histórico ficam em um registro versionado dentro de `memoria/`.
 - Em conversas comuns, apenas as 12 mensagens mais recentes são enviadas à API.
-- O histórico completo é usado apenas no comando especial `iProgram.ger`.
+- O comando docente `iProgram.ger` exige token, lista apenas dados humanos dos alunos
+  e gera, sob demanda, diagnóstico pedagógico e relatório PDF para download.
 - O conteúdo de `treinamento.txt` é carregado como instrução de sistema em cada
   solicitação, mantendo as regras pedagógicas em um único lugar.

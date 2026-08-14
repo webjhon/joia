@@ -55,5 +55,6 @@ versionados, logs ou mensagens de erro.
 - Em conversas comuns, apenas as 12 mensagens mais recentes são enviadas à API.
 - O comando docente `iProgram.ger` exige token, lista apenas dados humanos dos alunos
   e gera, sob demanda, diagnóstico pedagógico e relatório PDF para download.
-- O conteúdo de `treinamento.txt` é carregado como instrução de sistema em cada
-  solicitação, mantendo as regras pedagógicas em um único lugar.
+- Os conteúdos de `treinamento.txt` e `NEGATIVEPROMPTS.TXT` são carregados em toda
+  chamada ao modelo. O segundo documento registra comportamentos que não podem
+  ocorrer, especialmente repetições, regressões de cadastro e exigências de formato.

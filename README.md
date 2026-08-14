@@ -1,5 +1,7 @@
 # JOIA
 
+**Versão atual: 1.6**
+
 Assistente educacional de programação que usa a API da OpenAI e segue as
 orientações pedagógicas de `treinamento.txt`.
 
@@ -54,7 +56,8 @@ versionados, logs ou mensagens de erro.
   humanos e o histórico ficam em um registro versionado dentro de `memoria/`.
 - Em conversas comuns, apenas as 12 mensagens mais recentes são enviadas à API.
 - O comando docente `iProgram.ger` exige token, lista apenas dados humanos dos alunos
-  e gera, sob demanda, diagnóstico pedagógico e relatório PDF para download.
+  e gera, sob demanda, diagnóstico pedagógico e relatório PDF A4 diagramado, com
+  seções, parágrafos, listas, tipografia e caracteres acentuados para download.
 - Os conteúdos de `treinamento.txt` e `NEGATIVEPROMPTS.TXT` são carregados em toda
   chamada ao modelo. O segundo documento registra comportamentos que não podem
   ocorrer, especialmente repetições, regressões de cadastro e exigências de formato.

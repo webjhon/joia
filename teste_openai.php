@@ -305,22 +305,95 @@ function reportFor(array $student): string
     return callOpenAI($messages, 1600);
 }
 
-function pdfEscape(string $text): string { return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], iconv('UTF-8', 'Windows-1252//TRANSLIT', $text) ?: $text); }
+function pdfText(string $text): string
+{
+    // Os tipos Type 1 nativos do PDF usam WinAnsi. Declarar essa codificação no
+    // objeto da fonte e converter explicitamente evita o mojibake ("informaÃ§Ã£o")
+    // que alguns leitores exibiam no relatório anterior.
+    $encoded = iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $text);
+    return $encoded !== false ? $encoded : $text;
+}
+
+function pdfEscape(string $text): string
+{
+    return str_replace(['\\', '(', ')', "\r"], ['\\\\', '\\(', '\\)', ''], pdfText($text));
+}
+
+function pdfWrap(string $text, int $limit): array
+{
+    $words = preg_split('/\s+/u', trim($text)) ?: [];
+    $lines = []; $line = '';
+    foreach ($words as $word) {
+        if ($word === '') continue;
+        $candidate = $line === '' ? $word : $line . ' ' . $word;
+        $length = function_exists('mb_strlen') ? mb_strlen($candidate, 'UTF-8') : strlen($candidate);
+        if ($line !== '' && $length > $limit) { $lines[] = $line; $line = $word; }
+        else $line = $candidate;
+    }
+    if ($line !== '') $lines[] = $line;
+    return $lines;
+}
+
+function pdfBlocks(string $body): array
+{
+    $body = str_replace(["\r\n", "\r"], "\n", trim($body));
+    $body = preg_replace('/^Se desejar o documento formal.*$/imu', '', $body) ?? $body;
+    // Alguns modelos devolvem todas as seções em uma única linha. Reconstruímos
+    // as quebras a partir dos títulos solicitados, sem depender do Markdown.
+    $sectionNames = 'Identificação|Síntese do percurso|Conhecimentos demonstrados|Dificuldades e lacunas|Estratégias e comportamento de aprendizagem|Recomendações pedagógicas|Próximos passos';
+    $body = preg_replace('/\s*(?:\*\*)?(' . $sectionNames . ')(?:\*\*)?\s*[:\-–]?\s*/iu', "\n\n## $1\n", $body) ?? $body;
+    $blocks = [];
+    foreach (preg_split('/\n{2,}/', $body) ?: [] as $chunk) {
+        foreach (preg_split('/\n/', trim($chunk)) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+            if (preg_match('/^#{1,6}\s+(.+)$/u', $line, $match)) $blocks[] = ['heading', trim($match[1])];
+            elseif (preg_match('/^\*\*(.+?)\*\*:?$/u', $line, $match)) $blocks[] = ['heading', trim($match[1])];
+            elseif (preg_match('/^(?:[-*•]|\d+[.)])\s+(.+)$/u', $line, $match)) $blocks[] = ['bullet', trim($match[1])];
+            else {
+                $clean = preg_replace('/[*_`>#]+/u', '', $line) ?? $line;
+                $blocks[] = ['paragraph', trim($clean)];
+            }
+        }
+    }
+    return $blocks;
+}
 
 function buildPdf(string $title, string $body): string
 {
-    $plain = strip_tags(preg_replace('/[*#_|`>]+/', '', $body) ?? $body);
-    $words = preg_split('/\s+/', $plain) ?: [];
-    $lines = []; $line = '';
-    foreach ($words as $word) { if (strlen($line . ' ' . $word) > 92) { $lines[] = trim($line); $line = $word; } else $line .= ' ' . $word; }
-    if ($line !== '') $lines[] = trim($line);
-    $pages = array_chunk($lines, 46); $objects = []; $pageIds = []; $next = 4;
-    foreach ($pages as $pageNo => $pageLines) {
+    $pages = [[]]; $page = 0; $used = 0;
+    foreach (pdfBlocks($body) as $block) {
+        [$type, $text] = $block;
+        $limit = $type === 'heading' ? 64 : ($type === 'bullet' ? 88 : 94);
+        $lines = pdfWrap($text, $limit); $height = $type === 'heading' ? 18 : 14;
+        $needed = count($lines) * $height + ($type === 'heading' ? 10 : 7);
+        if ($used > 0 && $used + $needed > 630) { $page++; $pages[$page] = []; $used = 0; }
+        $pages[$page][] = [$type, $lines]; $used += $needed;
+    }
+    if (!$pages[0]) $pages[0][] = ['paragraph', ['Relatório sem conteúdo.']];
+
+    $objects = []; $pageIds = []; $next = 6;
+    foreach ($pages as $pageNo => $pageBlocks) {
         $pageId = $next++; $contentId = $next++; $pageIds[] = $pageId;
-        $stream = "BT /F1 12 Tf 85 780 Td 16 TL (" . pdfEscape($title) . ") Tj 0 -32 Td /F1 10 Tf 15 TL ";
-        foreach ($pageLines as $text) $stream .= '(' . pdfEscape($text) . ") Tj T* ";
-        $stream .= "0 -20 Td (Página " . ($pageNo + 1) . ") Tj ET";
-        $objects[$pageId] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents {$contentId} 0 R >>";
+        $stream = "q 0.18 0.52 0.40 rg 54 748 487 2 re f Q\n";
+        $stream .= "BT /F2 16 Tf 0.10 0.24 0.20 rg 54 778 Td (" . pdfEscape($title) . ") Tj ET\n";
+        $stream .= "BT /F3 8 Tf 0.36 0.43 0.40 rg 54 757 Td (JOIA - Avaliação pedagógica) Tj ET\n";
+        $y = 724;
+        foreach ($pageBlocks as [$type, $lines]) {
+            if ($type === 'heading') {
+                $y -= 7; $stream .= "BT /F2 12 Tf 0.10 0.38 0.29 rg 54 {$y} Td ";
+                foreach ($lines as $line) { $stream .= '(' . pdfEscape($line) . ") Tj 0 -18 Td "; $y -= 18; }
+                $stream .= "ET\n"; $y -= 3;
+            } else {
+                $x = $type === 'bullet' ? 68 : 54;
+                $stream .= "BT /F1 10 Tf 0.12 0.15 0.14 rg {$x} {$y} Td 14 TL ";
+                if ($type === 'bullet') $stream .= '(' . pdfEscape('•') . ') Tj 12 0 Td ';
+                foreach ($lines as $line) { $stream .= '(' . pdfEscape($line) . ") Tj T* "; $y -= 14; }
+                $stream .= "ET\n"; $y -= 7;
+            }
+        }
+        $stream .= "BT /F1 8 Tf 0.42 0.47 0.45 rg 54 35 Td (" . pdfEscape('Relatório educacional') . ") Tj 425 0 Td (" . pdfEscape('Página ' . ($pageNo + 1) . ' de ' . count($pages)) . ") Tj ET";
+        $objects[$pageId] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents {$contentId} 0 R >>";
         $objects[$contentId] = "<< /Length " . strlen($stream) . " >>\nstream\n{$stream}\nendstream";
     }
     $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
@@ -328,8 +401,10 @@ function buildPdf(string $title, string $body): string
         return $id . ' 0 R';
     }, $pageIds);
     $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', $pageReferences) . '] /Count ' . count($pageIds) . ' >>';
-    $objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'; ksort($objects);
-    $pdf = "%PDF-1.4\n"; $offsets = [0];
+    $objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+    $objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+    $objects[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>'; ksort($objects);
+    $pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"; $offsets = [0];
     foreach ($objects as $id => $object) { $offsets[$id] = strlen($pdf); $pdf .= "$id 0 obj\n$object\nendobj\n"; }
     $xref = strlen($pdf); $max = max(array_keys($objects)); $pdf .= "xref\n0 " . ($max + 1) . "\n0000000000 65535 f \n";
     for ($i = 1; $i <= $max; $i++) $pdf .= sprintf('%010d 00000 n ', $offsets[$i]) . "\n";

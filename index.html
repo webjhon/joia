@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+<!-- Versão 1.4. -->
+<meta name="application-version" content="1.4" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -93,6 +95,7 @@ body {
 }
 .side-btn.active { color:var(--accent); border-color:#2ee59d88; background:#153126; }
 .side-spacer{ flex:1 }
+.app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; opacity:.65; user-select:none; }
 
 .notes-panel { position:fixed; inset:20px 20px 20px 118px; z-index:10; display:none; grid-template-rows:auto 1fr auto; padding:20px; background:#0b1217f5; border:1px solid #2ee59d55; border-radius:var(--radius); box-shadow:var(--shadow); }
 .notes-panel.open { display:grid; }
@@ -257,6 +260,7 @@ body {
     <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
     <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
+    <small class="app-version" title="Versão da JOIA">v1.4</small>
   </aside>
 
   <main class="terminal">
@@ -299,7 +303,8 @@ lucide.createIcons();
 const apiUrl = "teste_openai.php";
 const output = document.getElementById("output");
 const userInput = document.getElementById("userInput");
-const profile = JSON.parse(localStorage.getItem("joia_profile") || '{}');
+const conversationId = sessionStorage.getItem("joia_conversation_id") || crypto.randomUUID();
+sessionStorage.setItem("joia_conversation_id", conversationId);
 const notesPanel = document.getElementById("notesPanel");
 const notesInput = document.getElementById("notesInput");
 const saveStatus = document.getElementById("saveStatus");
@@ -328,7 +333,7 @@ function showThinking(){
   output.scrollTop = output.scrollHeight;
 }
 
-async function renderTypedMessage(text){
+async function renderTypedMessage(text, downloadUrl = ""){
   document.getElementById("thinking")?.remove();
   const div = document.createElement("div");
   div.className = "msg joia";
@@ -345,6 +350,16 @@ async function renderTypedMessage(text){
     await new Promise(resolve => setTimeout(resolve, 12));
   }
   lastJoiaAnswer = text;
+  if(downloadUrl){
+    const link = document.createElement("a");
+    link.className = "action-btn";
+    link.href = downloadUrl;
+    link.textContent = "⬇ Baixar relatório em PDF";
+    link.style.display = "inline-block";
+    link.style.marginTop = "12px";
+    div.appendChild(document.createElement("br"));
+    div.appendChild(link);
+  }
 }
 
 async function sendMsg(){
@@ -358,15 +373,18 @@ async function sendMsg(){
     const res = await fetch(apiUrl,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mensagem:msg, aluno:profile.aluno, linguagem:profile.linguagem, turma:profile.turma})
+      body:JSON.stringify({mensagem:msg, conversation_id:conversationId})
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.erro || "Não foi possível conversar com a JOIA.");
-    if (data.etapa === "linguagem") profile.aluno = data.valor;
-    if (data.etapa === "turma") profile.linguagem = data.valor;
-    if (data.etapa === "conversa" && data.valor) profile.turma = data.valor;
-    localStorage.setItem("joia_profile", JSON.stringify(profile));
-    await renderTypedMessage(data.resposta);
+    const responseText = await res.text();
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : null;
+    } catch {
+      throw new Error(`O servidor retornou uma resposta inválida (HTTP ${res.status}). Verifique o log de erros do PHP.`);
+    }
+    if (!data) throw new Error(`O servidor não retornou conteúdo (HTTP ${res.status}). Verifique o log de erros do PHP.`);
+    if (!res.ok) throw new Error(data.erro || data.resposta || "Não foi possível conversar com a JOIA.");
+    await renderTypedMessage(data.resposta, data.download || "");
   } catch (error) {
     document.getElementById("thinking")?.remove();
     await renderTypedMessage(`⚠️ ${error.message}`);
@@ -401,7 +419,10 @@ document.getElementById("clearNotes").addEventListener("click", () => {
   if(confirm("Deseja apagar todas as anotações deste dispositivo?")){ notesInput.value = ""; saveNotes(); }
 });
 document.getElementById("newConversation").addEventListener("click", () => {
-  if(confirm("Iniciar uma nova conversa e um novo cadastro?")){ localStorage.removeItem("joia_profile"); location.reload(); }
+  if(confirm("Iniciar uma nova conversa e um novo cadastro?")){
+    fetch(apiUrl, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({acao:"reset", conversation_id:conversationId})})
+      .finally(() => { sessionStorage.removeItem("joia_conversation_id"); location.reload(); });
+  }
 });
 document.querySelectorAll(".icebreaker").forEach(button => button.addEventListener("click", () => {
   userInput.value = button.textContent; userInput.focus();

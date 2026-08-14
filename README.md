@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/readme/joia-banner.svg" alt="Banner da JOIA, unindo educação e inteligência artificial" width="100%">
+
 # 💎 JOIA
 
 ### Inteligência artificial a serviço de uma aprendizagem mais humana
@@ -65,9 +67,19 @@ dos fluxos e a coerência da proposta educacional.
 
 ## Desenvolvedor
 
-### Joçao Carlos de Moura dos Santos
+<div align="center">
 
-Professor do **SENAC de Ijuí**, Joçao Carlos de Moura dos Santos desenvolveu a
+<a href="https://www.linkedin.com/in/joaocarlosms/">
+  <img src="assets/readme/joao-carlos.svg" alt="Foto de João Carlos de Moura dos Santos" width="140">
+</a>
+
+### João Carlos de Moura dos Santos
+
+[Conheça seu perfil no LinkedIn](https://www.linkedin.com/in/joaocarlosms/)
+
+</div>
+
+Professor do **SENAC de Ijuí**, João Carlos de Moura dos Santos desenvolveu a
 JOIA a partir de seu interesse em acompanhar de maneira mais orientada os alunos
 em suas aventuras com a inteligência artificial.
 

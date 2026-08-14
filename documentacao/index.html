@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Wiki técnica e funcional da plataforma educacional JOIA.">
+  <title>JOIA Docs — Wiki técnica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <header class="wiki-navbar sticky-top border-bottom" aria-label="Cabeçalho principal">
+    <nav class="navbar navbar-expand-lg container-xxl py-2">
+      <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#inicio"><span class="brand-gem">◆</span> JOIA <span class="docs-label">DOCS</span></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#wikiMenu" aria-controls="wikiMenu" aria-label="Abrir navegação"><span class="navbar-toggler-icon"></span></button>
+      <div class="ms-auto d-none d-lg-flex align-items-center gap-3">
+        <span class="version-pill">Documenta a versão 1.6</span>
+        <a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a>
+      </div>
+    </nav>
+  </header>
+
+  <div class="container-xxl">
+    <div class="row g-0">
+      <aside class="col-lg-3 col-xl-2 border-end wiki-sidebar">
+        <div class="offcanvas-lg offcanvas-start" tabindex="-1" id="wikiMenu" aria-labelledby="wikiMenuLabel">
+          <div class="offcanvas-header"><h2 class="offcanvas-title h5" id="wikiMenuLabel">Conteúdo</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#wikiMenu" aria-label="Fechar"></button></div>
+          <div class="offcanvas-body p-lg-0"><nav id="indice" class="nav flex-column wiki-nav" aria-label="Índice da documentação">
+            <span class="nav-heading">Primeiros passos</span>
+            <a class="nav-link" href="#visao-geral">Visão geral</a><a class="nav-link" href="#arquitetura">Arquitetura</a><a class="nav-link" href="#instalacao">Instalação</a>
+            <span class="nav-heading">Frontend</span>
+            <a class="nav-link" href="#frontend">Mapa da interface</a><a class="nav-link" href="#responsividade">Grid e breakpoints</a><a class="nav-link" href="#personalizacao">Personalização</a><a class="nav-link" href="#javascript">JavaScript</a>
+            <span class="nav-heading">Backend</span>
+            <a class="nav-link" href="#api">API PHP</a><a class="nav-link" href="#fluxos">Fluxos e métodos</a><a class="nav-link" href="#modelo">Modelo de IA</a><a class="nav-link" href="#memoria">Memória e relatórios</a>
+            <span class="nav-heading">Operação</span>
+            <a class="nav-link" href="#seguranca">Segurança</a><a class="nav-link" href="#diagnostico">Diagnóstico</a><a class="nav-link" href="#publicacao">Publicação</a><a class="nav-link" href="#glossario">Glossário</a>
+          </nav></div>
+        </div>
+      </aside>
+
+      <main id="conteudo" class="col-lg-9 col-xl-10 wiki-main" data-bs-spy="scroll" data-bs-target="#indice" data-bs-smooth-scroll="true" tabindex="-1">
+        <section id="inicio" class="hero-section">
+          <img class="hero-banner" src="../assets/readme/joia-banner.svg" alt="JOIA: educação e inteligência artificial">
+          <div class="row align-items-end g-4 mt-2"><div class="col-xl-8"><span class="eyebrow">WIKI OFICIAL</span><h1>Entenda, mantenha e evolua a JOIA.</h1><p class="lead">Um guia do primeiro acesso à arquitetura do backend, escrito para quem está começando e detalhado o bastante para apoiar manutenção real.</p></div><div class="col-xl-4"><div class="quick-card"><strong>Nesta página</strong><span>HTML, CSS, JavaScript e PHP</span><span>Bootstrap Grid e breakpoints</span><span>OpenAI, memória e PDF</span></div></div></div>
+        </section>
+
+        <section id="visao-geral" class="doc-section"><div class="section-kicker">COMECE AQUI</div><h2>Visão geral</h2><p>A <strong>JOIA</strong> é uma assistente educacional em português. O navegador apresenta um terminal de conversa e um caderno local; o servidor PHP conduz o cadastro, consulta o modelo de linguagem, aplica limites pedagógicos, conserva o histórico individual e produz relatórios para o docente.</p>
+          <div class="row g-3 my-4"><div class="col-md-4"><article class="feature-card"><span>01</span><h3>Aprender</h3><p>Orienta por perguntas, pistas e reflexão, em vez de simplesmente entregar soluções.</p></article></div><div class="col-md-4"><article class="feature-card"><span>02</span><h3>Acompanhar</h3><p>Registra perfil e interações para preservar a continuidade da jornada.</p></article></div><div class="col-md-4"><article class="feature-card"><span>03</span><h3>Avaliar</h3><p>Organiza evidências em relatório pedagógico e PDF para uso docente.</p></article></div></div>
+          <div class="callout"><strong>Para leigos:</strong> “frontend” é a tela vista pelo usuário; “backend” é o código executado no servidor; “API” é o acordo de mensagens entre esses dois lados.</div>
+        </section>
+
+        <section id="arquitetura" class="doc-section"><div class="section-kicker">MAPA DO SISTEMA</div><h2>Arquitetura e arquivos</h2><div class="architecture"><div>Navegador<br><small>index.html</small></div><span>POST JSON →</span><div>Servidor<br><small>teste_openai.php</small></div><span>→ HTTPS</span><div>OpenAI<br><small>chat completions</small></div></div>
+          <div class="table-responsive mt-4"><table class="table align-middle"><thead><tr><th>Arquivo/pasta</th><th>Responsabilidade</th><th>Quando alterar</th></tr></thead><tbody>
+            <tr><td><code>index.html</code></td><td>Interface, estilos e comportamento do chat/caderno.</td><td>Textos, cores, layout e interação do usuário.</td></tr><tr><td><code>teste_openai.php</code></td><td>Endpoint, sessões, IA, memória, área docente e PDF.</td><td>Regras de negócio, modelo, limites e respostas HTTP.</td></tr><tr><td><code>treinamento.txt</code></td><td>Identidade e orientação pedagógica enviada à IA.</td><td>Tom, didática e critérios educacionais.</td></tr><tr><td><code>NEGATIVEPROMPTS.TXT</code></td><td>Restrições complementares de comportamento.</td><td>Guardrails pedagógicos; revise com cuidado.</td></tr><tr><td><code>memoria/</code></td><td>Arquivos JSON privados, um por estudante.</td><td>Não editar manualmente em produção.</td></tr><tr><td><code>config.local.example.php</code></td><td>Molde seguro da configuração local.</td><td>Copiar fora da pasta pública e preencher no servidor.</td></tr><tr><td><code>upload_temp.php</code></td><td>Upload temporário legado.</td><td>Não faz parte do fluxo atual do chat; endureça antes de usar.</td></tr><tr><td><code>documentacao/</code></td><td>Esta wiki, isolada da aplicação.</td><td>Atualize junto com cada mudança funcional.</td></tr>
+          </tbody></table></div>
+        </section>
+
+        <section id="instalacao" class="doc-section"><div class="section-kicker">AMBIENTE</div><h2>Instalação e configuração</h2><h3>Pré-requisitos</h3><ul class="check-list"><li>Servidor web com PHP 8 ou superior, sessões e extensão cURL.</li><li>HTTPS válido e saída de rede para a API da OpenAI.</li><li>Permissão de escrita em <code>memoria/</code>.</li><li>Uma chave de API armazenada no ambiente ou em configuração fora da raiz pública.</li></ul>
+          <h3>1. Teste local sem chamar a IA</h3><div class="code-example"><div class="code-toolbar"><span>Terminal</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>php -S 127.0.0.1:8080
+# abra http://127.0.0.1:8080</code></pre></div>
+          <h3>2. Configure o segredo</h3><p>Prefira a variável de ambiente. A chave nunca deve entrar no HTML, Git, print, log ou wiki.</p><div class="code-example"><div class="code-toolbar"><span>Exemplo conceitual</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>export OPENAI_API_KEY="sua-chave-no-servidor"
+php -S 127.0.0.1:8080</code></pre></div>
+          <div class="callout warning"><strong>Atenção:</strong> o backend também aceita <code>config.local.php</code> dois diretórios acima da pasta JOIA. Use o exemplo fornecido, mantenha o arquivo fora da web e aplique permissões mínimas.</div>
+        </section>
+
+        <section id="frontend" class="doc-section"><div class="section-kicker">CAMADA VISUAL</div><h2>Mapa do frontend</h2><p>A página principal é uma aplicação de uma tela. <code>.app</code> separa a barra lateral do terminal; o terminal possui cabeçalho, saída rolável e rodapé fixo. O painel de notas é uma camada independente.</p><div class="row g-3"><div class="col-md-6"><div class="mini-map"><b><code>.sidebar</code></b><p>Atalhos para notas, download, reinício e limpeza.</p><b><code>.output</code></b><p>Boas-vindas e mensagens de usuário/JOIA.</p></div></div><div class="col-md-6"><div class="mini-map"><b><code>.terminal-footer</code></b><p>Campo de mensagem acionado por Enter.</p><b><code>.notes-panel</code></b><p>Caderno persistido no próprio navegador.</p></div></div></div>
+          <h3>Trocar um texto</h3><div class="code-example"><div class="code-toolbar"><span>index.html</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>&lt;h1&gt;JOIA&lt;/h1&gt;
+&lt;p&gt;Seu novo texto de boas-vindas.&lt;/p&gt;</code></pre></div>
+        </section>
+
+        <section id="responsividade" class="doc-section"><div class="section-kicker">BOOTSTRAP</div><h2>Grid System e breakpoints</h2><p>Esta wiki usa o grid de 12 colunas do Bootstrap. A linha principal fica empilhada em telas menores; a partir de <code>lg</code>, o menu ocupa 3 colunas, o conteúdo 9; em <code>xl</code>, passa a 2 + 10. O menu vira <em>offcanvas</em> no celular.</p>
+          <div class="code-example"><div class="code-toolbar"><span>Grid responsivo desta wiki</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>&lt;div class="container-xxl"&gt;
+  &lt;div class="row g-0"&gt;
+    &lt;aside class="col-lg-3 col-xl-2"&gt;...&lt;/aside&gt;
+    &lt;main class="col-lg-9 col-xl-10"&gt;...&lt;/main&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre></div>
+          <div class="table-responsive"><table class="table"><thead><tr><th>Faixa</th><th>Início</th><th>Comportamento recomendado</th></tr></thead><tbody><tr><td><code>xs</code></td><td>0</td><td>Uma coluna, menu recolhido, alvos de toque amplos.</td></tr><tr><td><code>sm</code></td><td>576 px</td><td>Pequenos ajustes de respiro.</td></tr><tr><td><code>md</code></td><td>768 px</td><td>Cards podem ocupar duas ou três colunas.</td></tr><tr><td><code>lg</code></td><td>992 px</td><td>Navegação lateral permanente.</td></tr><tr><td><code>xl</code></td><td>1200 px</td><td>Conteúdo mais amplo e menu compacto.</td></tr><tr><td><code>xxl</code></td><td>1400 px</td><td>Container limitado para boa legibilidade.</td></tr></tbody></table></div>
+          <div class="callout"><strong>Regra prática:</strong> desenhe primeiro para celular e acrescente colunas com <code>col-md-*</code>, <code>col-lg-*</code> etc. Evite larguras fixas que causem rolagem horizontal.</div>
+        </section>
+
+        <section id="personalizacao" class="doc-section"><div class="section-kicker">EXEMPLOS</div><h2>Personalização visual</h2><h3>Cores</h3><p>Na aplicação, as propriedades de <code>:root</code> formam o tema. Mude variáveis antes de editar dezenas de seletores.</p><div class="code-example"><div class="code-toolbar"><span>Exemplo CSS</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>:root {
+  --bg: #0b0f12;       /* fundo */
+  --accent: #6ee7b7;   /* destaque */
+  --txt: #d9f5e8;      /* texto */
+  --radius: 14px;      /* cantos */
+}</code></pre></div><h3>Adicionar uma sugestão inicial</h3><div class="code-example"><div class="code-toolbar"><span>HTML</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>&lt;button class="icebreaker"&gt;Quero revisar para a prova&lt;/button&gt;</code></pre></div><p>O listener usa <code>querySelectorAll</code>, portanto novos botões com a mesma classe já recebem o comportamento ao carregar a página.</p>
+        </section>
+
+        <section id="javascript" class="doc-section"><div class="section-kicker">COMPORTAMENTO</div><h2>JavaScript do navegador</h2><div class="table-responsive"><table class="table"><thead><tr><th>Função</th><th>O que faz</th></tr></thead><tbody><tr><td><code>renderMessage()</code></td><td>Cria com segurança uma mensagem usando nós de texto.</td></tr><tr><td><code>showThinking()</code></td><td>Mostra o indicador temporário de processamento.</td></tr><tr><td><code>renderTypedMessage()</code></td><td>Anima a resposta e adiciona o download quando existir.</td></tr><tr><td><code>sendMsg()</code></td><td>Valida, envia JSON por <code>fetch</code>, interpreta erros e restaura o campo.</td></tr><tr><td><code>saveNotes()</code></td><td>Grava o caderno em <code>localStorage</code>.</td></tr></tbody></table></div>
+          <p><code>sessionStorage</code> mantém o identificador da conversa apenas naquela aba; <code>localStorage</code> mantém as notas após fechar o navegador. O botão “nova conversa” solicita <code>acao: reset</code> e cria outro identificador ao recarregar.</p>
+          <div class="code-example"><div class="code-toolbar"><span>Contrato de envio</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>{
+  "mensagem": "Quero aprender sobre funções",
+  "conversation_id": "identificador-gerado-pelo-navegador"
+}</code></pre></div>
+        </section>
+
+        <section id="api" class="doc-section"><div class="section-kicker">SERVIDOR</div><h2>API PHP</h2><p>O endpoint aceita <code>POST</code> JSON para conversar/reiniciar e <code>GET</code> somente para um PDF temporário já autorizado. Todas as respostas do chat são JSON UTF-8 e usam <code>Cache-Control: no-store</code>.</p>
+          <div class="table-responsive"><table class="table"><thead><tr><th>Status</th><th>Significado</th><th>Ação</th></tr></thead><tbody><tr><td>200</td><td>Operação concluída.</td><td>Exibir <code>resposta</code>.</td></tr><tr><td>403</td><td>Acesso docente não confirmado.</td><td>Não insistir; conferir credencial no servidor.</td></tr><tr><td>405</td><td>Método HTTP inadequado.</td><td>Use POST para mensagens.</td></tr><tr><td>422</td><td>Mensagem ou conversa inválida.</td><td>Corrigir a entrada.</td></tr><tr><td>502</td><td>Falha de configuração, dados ou serviço externo.</td><td>Consultar logs do servidor sem expô-los ao público.</td></tr></tbody></table></div>
+          <div class="code-example"><div class="code-toolbar"><span>Teste seguro de validação</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>curl -i -X POST http://127.0.0.1:8080/teste_openai.php \
+  -H 'Content-Type: application/json' \
+  -d '{"mensagem":"","conversation_id":"teste-local"}'</code></pre></div>
+        </section>
+
+        <section id="fluxos" class="doc-section"><div class="section-kicker">REGRAS DE NEGÓCIO</div><h2>Fluxos e métodos do backend</h2><div class="method-list">
+          <article><h3>Inicialização e respostas</h3><p>Os manipuladores globais convertem falhas fatais/exceções em JSON genérico. <code>respond()</code> centraliza status e serialização; <code>normalize()</code> padroniza texto para comparações tolerantes.</p></article>
+          <article><h3>Cadastro</h3><p><code>conversation()</code> cria o estado da sessão. <code>onboardingValue()</code> valida cada dado e <code>onboardingReply()</code> solicita, em sequência, nome, turma/curso e instituição. Ao final, um ID aleatório associa a sessão à memória criada.</p></article>
+          <article><h3>Memória</h3><p><code>memoryDirectory()</code>, <code>memoryPath()</code>, <code>loadMemory()</code> e <code>saveMemory()</code> isolam leitura/escrita. O ID deve ter 32 caracteres hexadecimais e a gravação usa bloqueio exclusivo.</p></article>
+          <article><h3>Orientação pedagógica</h3><p><code>codeLineCount()</code> estima código na resposta; <code>recentCodeWasGiven()</code> olha a janela recente; <code>enforcePedagogicalCodeLimit()</code> pede nova resposta quando a IA excede a regra.</p></article>
+          <article><h3>Relatórios</h3><p><code>allStudents()</code> ordena cadastros, <code>findStudent()</code> resolve a seleção, <code>reportFor()</code> produz a análise e as funções <code>pdf*</code> fazem paginação, codificação e geração do PDF A4.</p></article>
+        </div></section>
+
+        <section id="modelo" class="doc-section"><div class="section-kicker">INTELIGÊNCIA ARTIFICIAL</div><h2>Modelo e parâmetros</h2><p>A versão documentada usa <code>gpt-4o-mini</code> pelo endpoint de Chat Completions. <code>callOpenAI()</code> adiciona as instruções do projeto, envia o histórico e lê o conteúdo da primeira escolha.</p><div class="row g-3"><div class="col-md-4"><div class="metric"><b>0,35</b><span>Temperatura: respostas mais consistentes.</span></div></div><div class="col-md-4"><div class="metric"><b>900</b><span>Máximo padrão de tokens de saída.</span></div></div><div class="col-md-4"><div class="metric"><b>12</b><span>Itens recentes enviados como contexto.</span></div></div></div>
+          <h3>Trocar o modelo com responsabilidade</h3><div class="code-example"><div class="code-toolbar"><span>teste_openai.php</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>const OPENAI_MODEL = 'nome-do-modelo-validado';</code></pre></div><p>Antes de publicar, confirme disponibilidade na sua conta, compatibilidade do endpoint e dos parâmetros, custo, latência, qualidade pedagógica e tratamento de dados. Modelos e APIs evoluem: valide sempre na documentação oficial atual.</p>
+          <div class="callout warning"><strong>Não documentado de propósito:</strong> conteúdo integral dos prompts internos, credenciais, hashes, gatilhos da área docente e dados dos estudantes. Essa omissão protege o sistema e seus usuários.</div>
+        </section>
+
+        <section id="memoria" class="doc-section"><div class="section-kicker">DADOS</div><h2>Memória, sessões e PDF</h2><p>A sessão PHP guarda o estágio do cadastro, vínculo temporário e relatórios disponíveis. A persistência longa fica em JSON com versão do esquema, ID aleatório, perfil, datas e histórico alternado entre usuário e assistente.</p><div class="code-example"><div class="code-toolbar"><span>Estrutura ilustrativa (dados fictícios)</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>{
+  "schema_version": 2,
+  "id": "identificador-aleatorio",
+  "profile": { "full_name": "Pessoa Exemplo", "class": "Turma A" },
+  "created_at": "data-em-UTC",
+  "history": []
+}</code></pre></div><p>O PDF é montado sem biblioteca externa, usa fontes Type 1, converte texto para WinAnsi, quebra parágrafos e cria páginas conforme a altura utilizada. O link depende da sessão e de uma chave aleatória temporária.</p></section>
+
+        <section id="seguranca" class="doc-section"><div class="section-kicker">ANTES DE PUBLICAR</div><h2>Segurança e privacidade</h2><ul class="security-list"><li><strong>Segredos:</strong> mantenha a chave somente no servidor, rotacione se houver suspeita de vazamento.</li><li><strong>Dados pessoais:</strong> restrinja acesso e backup de <code>memoria/</code>; defina retenção e base legal com a instituição.</li><li><strong>Logs:</strong> registre o necessário para diagnóstico, nunca prompts completos, chaves ou dados sensíveis.</li><li><strong>Área docente:</strong> troque qualquer credencial padrão antes de publicar e prefira autenticação robusta, rate limit e auditoria.</li><li><strong>Uploads:</strong> o arquivo legado exige validação MIME, nomes aleatórios fortes, limite de tamanho e armazenamento fora da raiz pública antes de ser habilitado.</li><li><strong>Dependências:</strong> fixe versões, mantenha integridade SRI e revise CDNs periodicamente.</li><li><strong>Erros:</strong> mensagens públicas devem ser genéricas; detalhes ficam somente no log protegido.</li></ul><div class="callout danger"><strong>Nunca copie para esta wiki:</strong> chaves reais, tokens, hashes de acesso, caminhos privados, memórias de alunos ou o texto integral das instruções internas.</div></section>
+
+        <section id="diagnostico" class="doc-section"><div class="section-kicker">MANUTENÇÃO</div><h2>Diagnóstico e testes</h2><div class="accordion" id="faq"><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#f1">A tela abre, mas a conversa falha</button></h3><div id="f1" class="accordion-collapse collapse show" data-bs-parent="#faq"><div class="accordion-body">Abra as ferramentas do navegador, veja a requisição POST e o status. Confirme PHP cURL, chave, cota, saída HTTPS, configuração e log protegido do servidor.</div></div></div><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f2">O histórico não é gravado</button></h3><div id="f2" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">Verifique se <code>memoria/</code> existe e se o usuário do servidor possui escrita, sem conceder permissão pública ampla.</div></div></div><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f3">O layout quebra no celular</button></h3><div id="f3" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">Teste em 320, 576, 768, 992 e 1200 px. Procure larguras fixas, conteúdo sem quebra e elementos que ignoram <code>min-width: 0</code>.</div></div></div></div>
+          <div class="code-example mt-4"><div class="code-toolbar"><span>Checklist de terminal</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>php -l teste_openai.php
+php -l upload_temp.php
+git status --short
+# depois: teste conversa, cadastro, notas, reset e PDF no navegador</code></pre></div>
+        </section>
+
+        <section id="publicacao" class="doc-section"><div class="section-kicker">DEPLOY</div><h2>Publicação e rotina de mudança</h2><ol class="steps"><li><b>Crie uma cópia/branch.</b><span>Evite editar produção diretamente.</span></li><li><b>Faça uma mudança pequena.</b><span>Frontend, backend ou instruções — uma intenção clara.</span></li><li><b>Valide sintaxe e fluxos.</b><span>Inclua celular, desktop, erro de API e acessibilidade por teclado.</span></li><li><b>Revise privacidade.</b><span>Confira o diff procurando segredos e dados pessoais.</span></li><li><b>Atualize versão e wiki.</b><span>Mantenha aplicação, documentação e histórico coerentes.</span></li><li><b>Publique e monitore.</b><span>Faça backup seguro e acompanhe erros sem expor detalhes.</span></li></ol><p>Em hospedagem sob <code>/joia/</code>, preserve os caminhos relativos: a aplicação fica em <code>/joia/</code> e esta documentação em <code>/joia/documentacao/</code>.</p></section>
+
+        <section id="glossario" class="doc-section"><div class="section-kicker">REFERÊNCIA RÁPIDA</div><h2>Glossário</h2><dl class="glossary"><dt>Breakpoint</dt><dd>Largura em que o layout muda.</dd><dt>CDN</dt><dd>Servidor externo que entrega Bootstrap, fontes ou bibliotecas.</dd><dt>JSON</dt><dd>Formato textual usado para trocar dados estruturados.</dd><dt>Prompt</dt><dd>Instrução/contexto enviado ao modelo.</dd><dt>Sessão</dt><dd>Estado temporário ligado ao navegador no servidor.</dd><dt>Token</dt><dd>Unidade aproximada de texto processada pelo modelo; também pode significar credencial, conforme o contexto.</dd></dl></section>
+
+        <footer class="wiki-footer"><strong>JOIA Docs</strong><span>Documentação funcional da versão 1.6.</span><a href="#inicio">Voltar ao topo ↑</a></footer>
+      </main>
+    </div>
+  </div>
+  <div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark" role="status" aria-live="polite" aria-atomic="true"><div class="toast-body">Código copiado.</div></div></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="assets/wiki.js"></script>
+</body>
+</html>

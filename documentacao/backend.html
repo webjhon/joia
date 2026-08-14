@@ -1,0 +1,105 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Backend PHP"><title>Backend PHP — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.6</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link " href="frontend.html">Frontend</a><a class="nav-link active" href="backend.html">Backend PHP</a><a class="nav-link " href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link " href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link " href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link " href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+<section class="page-hero compact"><span class="eyebrow">TESTE_OPENAI.PHP</span><h1>Backend da JOIA</h1><p>Referência das constantes, funções, rotas, validações e estados executados no servidor.</p></section>
+<section><h2>Inicialização e contrato HTTP</h2><p>O arquivo usa tipagem estrita, oculta erros da resposta pública e registra falhas fatais. O manipulador de exceções devolve JSON genérico; detalhes são enviados somente ao log do PHP.</p><div class="code-example"><div class="code-toolbar"><span>Cabeçalhos</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>declare(strict_types=1);
+ini_set(&#x27;display_errors&#x27;, &#x27;0&#x27;);
+header(&#x27;Content-Type: application/json; charset=utf-8&#x27;);
+header(&#x27;Cache-Control: no-store&#x27;);</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Resposta centralizada</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function respond(array $payload, int $status = 200): void
+{
+    http_response_code($status);
+    echo json_encode($payload,
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}</code></pre></div></section>
+<section><h2>Constantes</h2><div class="table-responsive"><table class="table"><thead><tr><th>Constante</th><th>Valor</th><th>Função</th></tr></thead><tbody><tr><td><code>OPENAI_ENDPOINT</code></td><td><code>/v1/chat/completions</code></td><td>Rota externa consultada.</td></tr><tr><td><code>OPENAI_MODEL</code></td><td><code>gpt-4o-mini</code></td><td>Modelo usado nas respostas.</td></tr><tr><td><code>MAX_MESSAGE_LENGTH</code></td><td>4000</td><td>Limite da entrada.</td></tr><tr><td><code>HISTORY_WINDOW</code></td><td>12</td><td>Itens recentes enviados ao modelo.</td></tr></tbody></table></div><p>A credencial da área docente e seus mecanismos internos não são reproduzidos nesta wiki.</p></section>
+<section><h2>Normalização e memória</h2><p><code>normalize()</code> aplica trim, minúsculas, transliteração ASCII e troca pontuação por espaços. Isso permite reconhecer intenções sem depender de acentos.</p><div class="code-example"><div class="code-toolbar"><span>Normalização</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function normalize(string $value): string
+{
+    $value = mb_strtolower(trim($value), &#x27;UTF-8&#x27;);
+    $ascii = iconv(&#x27;UTF-8&#x27;, &#x27;ASCII//TRANSLIT//IGNORE&#x27;, $value);
+    return trim(preg_replace(&#x27;/[^a-z0-9]+/&#x27;, &#x27; &#x27;, $ascii) ?? &#x27;&#x27;);
+}</code></pre></div>
+<p><code>memoryDirectory()</code> localiza/cria <code>memoria</code>; <code>memoryPath()</code> aceita somente ID hexadecimal de 32 posições; <code>loadMemory()</code> decodifica JSON; <code>saveMemory()</code> atualiza a data e grava com <code>LOCK_EX</code>.</p><div class="code-example"><div class="code-toolbar"><span>Gravação</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function saveMemory(array $memory): void
+{
+    $memory[&#x27;updated_at&#x27;] = gmdate(&#x27;c&#x27;);
+    $json = json_encode($memory,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    file_put_contents(memoryPath($memory[&#x27;id&#x27;]), $json, LOCK_EX);
+}</code></pre></div></section>
+<section><h2>Instruções e chave da API</h2><p><code>instructionDocuments()</code> lê os dois arquivos de orientação e os combina. <code>systemPrompt()</code> reforça idioma e confidencialidade. <code>openAIApiKey()</code> procura primeiro a variável de ambiente e depois uma configuração privada fora da pasta pública.</p><div class="code-example"><div class="code-toolbar"><span>Composição das instruções</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>return &quot;TREINAMENTO:
+&quot; . $training
+    . &quot;
+
+RESTRIÇÕES COMPLEMENTARES:
+&quot;
+    . $negativePrompts;</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Prioridade da configuração</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$serverKey = getenv(&#x27;OPENAI_API_KEY&#x27;);
+if ($serverKey !== false &amp;&amp; trim($serverKey) !== &#x27;&#x27;) {
+    return trim($serverKey);
+}
+$configPath = dirname(__DIR__, 2) . &#x27;/config.local.php&#x27;;</code></pre></div></section>
+<section><h2>Chamada à OpenAI</h2><p><code>callOpenAI()</code> valida cURL, coloca os documentos na primeira posição, configura corpo, timeouts e cabeçalhos, executa a requisição, verifica HTTP e extrai a resposta. Em modo estruturado, adiciona <code>response_format: json_object</code>.</p><div class="code-example"><div class="code-toolbar"><span>Corpo enviado</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$body = [
+  &#x27;model&#x27; =&gt; OPENAI_MODEL,
+  &#x27;messages&#x27; =&gt; $messages,
+  &#x27;temperature&#x27; =&gt; 0.35,
+  &#x27;max_tokens&#x27; =&gt; $maxTokens
+];</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Configuração cURL</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>curl_setopt_array($ch, [
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_CONNECTTIMEOUT =&gt; 10,
+  CURLOPT_TIMEOUT =&gt; 60,
+  CURLOPT_HTTPHEADER =&gt; [&#x27;Content-Type: application/json&#x27;,
+    &#x27;Authorization: Bearer &#x27; . openAIApiKey()],
+  CURLOPT_POST =&gt; true,
+  CURLOPT_POSTFIELDS =&gt; json_encode($body)
+]);</code></pre></div></section>
+<section><h2>Limite pedagógico de código</h2><p><code>codeLineCount()</code> conta linhas em blocos Markdown e padrões comuns fora deles. <code>recentCodeWasGiven()</code> examina as últimas 12 mensagens; <code>isExplicitCodeRequest()</code> reconhece pedidos; <code>consecutiveCodeRequests()</code> mede insistência.</p><div class="code-example"><div class="code-toolbar"><span>Decisão principal</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function enforcePedagogicalCodeLimit(
+  string $answer, array $history,
+  string $message, array $messages
+): string {
+  $codeLines = codeLineCount($answer);
+  if ($codeLines &lt;= 2 &amp;&amp;
+      ($codeLines === 0 || !recentCodeWasGiven($history))) {
+      return $answer;
+  }
+  return pedagogicalRetry($messages, $message,
+      consecutiveCodeRequests($message, $history));
+}</code></pre></div>
+<p><code>pedagogicalRetry()</code> solicita uma resposta conceitual sem código. Se a segunda tentativa ainda falhar, o sistema remove blocos ou usa uma pergunta pedagógica local.</p></section>
+<section><h2>Cadastro e estado da conversa</h2><p><code>conversation()</code> mantém na sessão um estado com <code>stage</code>, <code>draft</code> e estado docente. <code>onboardingValue()</code> limpa e limita a entrada; <code>onboardingReply()</code> conduz nome, turma/curso e instituição, uma etapa por vez.</p><div class="code-example"><div class="code-toolbar"><span>Estado inicial</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$_SESSION[&#x27;conversations&#x27;][$id] = [
+  &#x27;stage&#x27; =&gt; &#x27;welcome&#x27;,
+  &#x27;draft&#x27; =&gt; [],
+  &#x27;admin&#x27; =&gt; null
+];</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Memória criada ao concluir</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$memory = [
+  &#x27;schema_version&#x27; =&gt; 2,
+  &#x27;id&#x27; =&gt; bin2hex(random_bytes(16)),
+  &#x27;profile&#x27; =&gt; $state[&#x27;draft&#x27;],
+  &#x27;created_at&#x27; =&gt; gmdate(&#x27;c&#x27;),
+  &#x27;history&#x27; =&gt; []
+];
+saveMemory($memory);</code></pre></div></section>
+<section><h2>Roteamento da requisição</h2><p>GET com uma referência temporária entrega PDF. Outros GETs recebem 405. No POST, o PHP lê JSON, higieniza <code>conversation_id</code>, trata reset e valida mensagem. Depois percorre: área docente protegida, cadastro inicial ou conversa normal.</p><div class="code-example"><div class="code-toolbar"><span>Leitura e validação</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$input = json_decode(
+  (string) file_get_contents(&#x27;php://input&#x27;), true
+) ?: [];
+$message = trim((string) ($input[&#x27;mensagem&#x27;] ?? &#x27;&#x27;));
+$conversationId = preg_replace(&#x27;/[^a-zA-Z0-9-]/&#x27;, &#x27;&#x27;,
+  (string) ($input[&#x27;conversation_id&#x27;] ?? &#x27;&#x27;));
+if ($conversationId === &#x27;&#x27; || strlen($conversationId) &gt; 80) {
+  respond([&#x27;erro&#x27; =&gt; &#x27;Conversa inválida.&#x27;], 422);
+}</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Montagem do contexto</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$messages = [
+  [&#x27;role&#x27;=&gt;&#x27;system&#x27;, &#x27;content&#x27;=&gt;systemPrompt()],
+  [&#x27;role&#x27;=&gt;&#x27;system&#x27;, &#x27;content&#x27;=&gt;&#x27;Perfil confirmado: &#x27;
+    . json_encode($memory[&#x27;profile&#x27;])]
+];
+foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
+  $messages[] = [&#x27;role&#x27;=&gt;$item[&#x27;role&#x27;], &#x27;content&#x27;=&gt;$item[&#x27;content&#x27;]];
+}
+$messages[] = [&#x27;role&#x27;=&gt;&#x27;user&#x27;, &#x27;content&#x27;=&gt;$message];</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Persistência da interação</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$answer = enforcePedagogicalCodeLimit(
+  callOpenAI($messages), $history, $message, $messages
+);
+$history[] = [&#x27;role&#x27;=&gt;&#x27;user&#x27;, &#x27;content&#x27;=&gt;$message, &#x27;timestamp&#x27;=&gt;$now];
+$history[] = [&#x27;role&#x27;=&gt;&#x27;assistant&#x27;, &#x27;content&#x27;=&gt;$answer, &#x27;timestamp&#x27;=&gt;$now];
+$memory[&#x27;history&#x27;] = $history;
+saveMemory($memory);</code></pre></div></section><footer><b>JOIA Docs</b><span>Referência da versão 1.6</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>

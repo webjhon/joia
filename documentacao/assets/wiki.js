@@ -13,9 +13,9 @@ document.querySelectorAll('.copy-btn').forEach((button) => {
   });
 });
 
-document.querySelectorAll('#wikiMenu .nav-link').forEach((link) => {
+document.querySelectorAll('#menu .nav-link').forEach((link) => {
   link.addEventListener('click', () => {
-    const menu = document.getElementById('wikiMenu');
+    const menu = document.getElementById('menu');
     if (window.innerWidth < 992) bootstrap.Offcanvas.getOrCreateInstance(menu).hide();
   });
 });

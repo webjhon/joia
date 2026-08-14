@@ -144,6 +144,45 @@ function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false): 
     return $answer;
 }
 
+function codeLineCount(string $answer): int
+{
+    $count = 0;
+    $withoutBlocks = $answer;
+    if (preg_match_all('/```[^\n]*\n(.*?)```/s', $answer, $blocks)) {
+        foreach ($blocks[1] as $block) {
+            foreach (preg_split('/\R/', trim($block)) ?: [] as $line) {
+                if (trim($line) !== '') $count++;
+            }
+        }
+        $withoutBlocks = preg_replace('/```[^\n]*\n.*?```/s', '', $answer) ?? $answer;
+    }
+    foreach (preg_split('/\R/', $withoutBlocks) ?: [] as $line) {
+        if (preg_match('/^\s*(?:const|let|var|import|export|public|private|protected|class|function|def|return|if|for|while)\b|^\s*[A-Za-z_$][\w$]*(?:\.[\w$]+)+\s*\(/', $line)) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+function recentCodeWasGiven(array $history): bool
+{
+    $recent = array_slice($history, -12);
+    foreach ($recent as $item) {
+        if (($item['role'] ?? '') === 'assistant' && codeLineCount((string) ($item['content'] ?? '')) > 0) return true;
+    }
+    return false;
+}
+
+function enforcePedagogicalCodeLimit(string $answer, array $history): string
+{
+    $codeLines = codeLineCount($answer);
+    if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))) return $answer;
+
+    return 'Vamos evitar uma solução pronta para preservar seu raciocínio. 💚 ' .
+        'Descreva primeiro, com suas palavras, qual é a menor parte que você precisa construir agora; ' .
+        'a partir da sua tentativa, eu ofereço uma pista conceitual e deixo o próximo espaço para você completar.';
+}
+
 function conversation(string $id): array
 {
     if (!isset($_SESSION['conversations']) || !is_array($_SESSION['conversations'])) {
@@ -312,7 +351,8 @@ try {
     $history = is_array($memory['history'] ?? null) ? $memory['history'] : [];
     $messages = [['role' => 'system', 'content' => systemPrompt()], ['role' => 'system', 'content' => 'Perfil confirmado: ' . json_encode($memory['profile'], JSON_UNESCAPED_UNICODE) . '. Continue o suporte sem repetir o cadastro.']];
     foreach (array_slice($history, -HISTORY_WINDOW) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
-    $messages[] = ['role' => 'user', 'content' => $message]; $answer = callOpenAI($messages);
+    $messages[] = ['role' => 'user', 'content' => $message];
+    $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history);
     $now = gmdate('c'); $history[] = ['role' => 'user', 'content' => $message, 'timestamp' => $now]; $history[] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
     $memory['history'] = $history; saveMemory($memory); respond(['resposta' => $answer, 'etapa' => 'conversation']);
 } catch (Throwable $error) { error_log('JOIA: ' . $error->getMessage()); respond(['erro' => $error->getMessage()], 502); }

@@ -1,0 +1,74 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Frontend"><title>Frontend — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.6</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link active" href="frontend.html">Frontend</a><a class="nav-link " href="backend.html">Backend PHP</a><a class="nav-link " href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link " href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link " href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link " href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+<section class="page-hero compact"><span class="eyebrow">INDEX.HTML</span><h1>Frontend da JOIA</h1><p>Como o terminal, as mensagens, o caderno e a comunicação com o PHP foram implementados.</p></section>
+<section><h2>Estrutura da tela</h2><p><code>.app</code> contém dois elementos: a barra lateral de ações e o terminal. O terminal é dividido em cabeçalho, saída rolável e rodapé com o campo de entrada.</p><div class="code-example"><div class="code-toolbar"><span>HTML principal</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>&lt;div class=&quot;app&quot;&gt;
+  &lt;aside class=&quot;sidebar&quot;&gt;...&lt;/aside&gt;
+  &lt;main class=&quot;terminal&quot;&gt;
+    &lt;header class=&quot;terminal-header&quot;&gt;...&lt;/header&gt;
+    &lt;section id=&quot;output&quot; class=&quot;output&quot;&gt;...&lt;/section&gt;
+    &lt;footer class=&quot;terminal-footer&quot;&gt;...&lt;/footer&gt;
+  &lt;/main&gt;
+&lt;/div&gt;</code></pre></div>
+<div class="note"><b>Responsividade real da JOIA:</b> abaixo de 700 px, as mensagens passam a ocupar até 95% da largura, recebem menos espaço interno e fonte menor. O restante do terminal utiliza <code>clamp()</code>, Grid e Flexbox para se adaptar sem trocar o fluxo da conversa.</div></section>
+<section><h2>Tema e layout</h2><p>As variáveis concentram cores, transparência, sombra e raio. <code>.app</code> cria uma coluna de 80 px para a barra e outra fluida para o terminal.</p><div class="code-example"><div class="code-toolbar"><span>CSS — variáveis</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>:root {
+  --bg:#0b0f12;
+  --glass:#0e151b99;
+  --border:#2ee59d33;
+  --accent:#6ee7b7;
+  --txt:#d9f5e8;
+  --radius:14px;
+}</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>CSS — grid</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>.app {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  height: 100%;
+  gap: 18px;
+  padding: 20px;
+}</code></pre></div></section>
+<section><h2>Criação das mensagens</h2><p><code>renderMessage()</code> remove as boas-vindas, cria o contêiner, insere o rótulo e usa <code>createTextNode</code>. Assim, o texto recebido não é interpretado como HTML.</p><div class="code-example"><div class="code-toolbar"><span>JavaScript</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function renderMessage(text, sender){
+  document.getElementById(&quot;welcome&quot;)?.remove();
+  const div = document.createElement(&quot;div&quot;);
+  div.className = &quot;msg &quot; + sender;
+  const label = document.createElement(&quot;b&quot;);
+  label.textContent = sender === &quot;user&quot; ? &quot;Você: &quot; : &quot;JOIA: &quot;;
+  div.append(label, document.createTextNode(text));
+  div.style.whiteSpace = &quot;pre-wrap&quot;;
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}</code></pre></div>
+<p><code>showThinking()</code> adiciona a mensagem animada enquanto o servidor trabalha. <code>renderTypedMessage()</code> remove esse indicador, revela a resposta em aproximadamente 80 etapas, conserva a última resposta e, quando o backend retorna <code>download</code>, cria o botão do PDF.</p></section>
+<section><h2>Envio ao backend</h2><p><code>sendMsg()</code> ignora texto vazio, bloqueia o campo para impedir envios simultâneos e envia JSON. Primeiro lê a resposta como texto; só depois tenta convertê-la, produzindo uma mensagem compreensível quando o PHP retorna conteúdo inválido.</p><div class="code-example"><div class="code-toolbar"><span>Requisição fetch</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>const res = await fetch(&quot;teste_openai.php&quot;, {
+  method: &quot;POST&quot;,
+  headers: {&quot;Content-Type&quot;:&quot;application/json&quot;},
+  body: JSON.stringify({
+    mensagem: msg,
+    conversation_id: conversationId
+  })
+});</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Tratamento da resposta</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>const responseText = await res.text();
+const data = responseText ? JSON.parse(responseText) : null;
+if (!res.ok) {
+  throw new Error(data.erro || data.resposta);
+}
+await renderTypedMessage(data.resposta, data.download || &quot;&quot;);</code></pre></div></section>
+<section><h2>Identificador e eventos</h2><p>Um UUID fica em <code>sessionStorage</code>, portanto sobrevive a recargas na mesma aba. Enter chama <code>sendMsg()</code>; os quebra-gelos apenas preenchem o campo; uma nova conversa pede reset ao PHP e remove o UUID.</p><div class="code-example"><div class="code-toolbar"><span>Identificador da conversa</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>const conversationId = sessionStorage.getItem(&quot;joia_conversation_id&quot;)
+  || crypto.randomUUID();
+sessionStorage.setItem(&quot;joia_conversation_id&quot;, conversationId);</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Eventos principais</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>userInput.addEventListener(&quot;keydown&quot;, event =&gt; {
+  if (event.key === &quot;Enter&quot;) sendMsg();
+});
+document.querySelectorAll(&quot;.icebreaker&quot;).forEach(button =&gt;
+  button.addEventListener(&quot;click&quot;, () =&gt; {
+    userInput.value = button.textContent;
+    userInput.focus();
+  })
+);</code></pre></div></section>
+<section><h2>Caderno de anotações</h2><p>As notas pertencem ao navegador, não ao perfil salvo no servidor. <code>saveNotes()</code> escreve em <code>localStorage</code>; os outros botões abrem o painel, anexam a última resposta, baixam um Blob de texto ou limpam o conteúdo com confirmação.</p><div class="code-example"><div class="code-toolbar"><span>Persistência local</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function saveNotes(){
+  localStorage.setItem(&quot;joia_notes&quot;, notesInput.value);
+  saveStatus.textContent = &quot;Anotações salvas agora ✓&quot;;
+}</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Download em TXT</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>const link = document.createElement(&quot;a&quot;);
+link.href = URL.createObjectURL(new Blob(
+  [notesInput.value], {type:&quot;text/plain;charset=utf-8&quot;}
+));
+link.download = &quot;anotacoes-joia.txt&quot;;
+link.click();</code></pre></div></section><footer><b>JOIA Docs</b><span>Referência da versão 1.6</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>

@@ -1,0 +1,59 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Dados e relatórios"><title>Dados e relatórios — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.6</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link " href="frontend.html">Frontend</a><a class="nav-link " href="backend.html">Backend PHP</a><a class="nav-link " href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link active" href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link " href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link " href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+<section class="page-hero compact"><span class="eyebrow">PERSISTÊNCIA</span><h1>Dados, sessões e relatórios</h1><p>O que fica no navegador, na sessão PHP e nos arquivos de memória da JOIA.</p></section>
+<section><h2>Três níveis de estado</h2><div class="card-grid"><div class="topic-card"><b>Navegador</b><span><code>sessionStorage</code>: ID da conversa. <code>localStorage</code>: caderno pessoal.</span></div><div class="topic-card"><b>Sessão PHP</b><span>Etapa do cadastro, vínculo com aluno, estado docente e PDF temporário.</span></div><div class="topic-card"><b>Disco</b><span>Perfil e histórico em <code>memoria/aluno_*.json</code>.</span></div></div></section>
+<section><h2>Formato da memória</h2><p>Cada cadastro recebe 16 bytes aleatórios convertidos em 32 caracteres hexadecimais. O nome do arquivo deriva desse ID validado, nunca do nome do aluno.</p><div class="code-example"><div class="code-toolbar"><span>JSON ilustrativo</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>{
+  &quot;schema_version&quot;: 2,
+  &quot;id&quot;: &quot;32-caracteres-hexadecimais&quot;,
+  &quot;profile&quot;: {
+    &quot;full_name&quot;: &quot;Pessoa Exemplo&quot;,
+    &quot;preferred_name&quot;: &quot;Pessoa&quot;,
+    &quot;class&quot;: &quot;Turma A&quot;,
+    &quot;institution&quot;: &quot;Escola Exemplo&quot;
+  },
+  &quot;created_at&quot;: &quot;data UTC&quot;,
+  &quot;updated_at&quot;: &quot;data UTC&quot;,
+  &quot;history&quot;: []
+}</code></pre></div>
+<p>Cada interação adiciona dois itens ao histórico com o mesmo timestamp UTC: um de papel <code>user</code> e outro <code>assistant</code>.</p></section>
+<section><h2>Listagem e seleção docente</h2><p><code>allStudents()</code> percorre arquivos válidos, exige ID e nome, ordena alfabeticamente e calcula interações dividindo o número de itens por dois. <code>studentTable()</code> cria uma tabela Markdown e remove barras verticais dos dados. <code>findStudent()</code> aceita número exato ou parte inequívoca do nome normalizado.</p><div class="code-example"><div class="code-toolbar"><span>Ordenação</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>usort($students, static function (array $a, array $b): int {
+  return strcasecmp(
+    $a[&#x27;profile&#x27;][&#x27;full_name&#x27;],
+    $b[&#x27;profile&#x27;][&#x27;full_name&#x27;]
+  );
+});</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Seleção por nome</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$matches = array_values(array_filter($students,
+  static fn(array $student): bool =&gt;
+    $needle !== &#x27;&#x27; &amp;&amp; strpos(
+      normalize($student[&#x27;profile&#x27;][&#x27;full_name&#x27;]), $needle
+    ) !== false
+));
+return count($matches) === 1 ? $matches[0] : null;</code></pre></div></section>
+<section><h2>Preparação do texto para PDF</h2><p><code>pdfText()</code> converte UTF-8 para Windows-1252, compatível com as fontes nativas usadas. <code>pdfEscape()</code> protege barra, parênteses e retorno de carro. <code>pdfWrap()</code> quebra palavras conforme o limite de cada tipo de bloco.</p><div class="code-example"><div class="code-toolbar"><span>Codificação e escape</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>function pdfEscape(string $text): string
+{
+  return str_replace(
+    [&#x27;\&#x27;, &#x27;(&#x27;, &#x27;)&#x27;, &quot;
+&quot;],
+    [&#x27;\\&#x27;, &#x27;\(&#x27;, &#x27;\)&#x27;, &#x27;&#x27;],
+    pdfText($text)
+  );
+}</code></pre></div></section>
+<section><h2>Interpretação e paginação</h2><p><code>pdfBlocks()</code> normaliza quebras, reconhece os títulos esperados mesmo se vierem na mesma linha e classifica cada trecho como título, item ou parágrafo. <code>buildPdf()</code> calcula a altura, abre nova página após 630 pontos úteis e desenha cabeçalho, conteúdo e rodapé.</p><div class="code-example"><div class="code-toolbar"><span>Limites visuais</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$limit = $type === &#x27;heading&#x27; ? 64
+  : ($type === &#x27;bullet&#x27; ? 88 : 94);
+$height = $type === &#x27;heading&#x27; ? 18 : 14;
+if ($used &gt; 0 &amp;&amp; $used + $needed &gt; 630) {
+  $page++;
+  $pages[$page] = [];
+  $used = 0;
+}</code></pre></div>
+<div class="code-example"><div class="code-toolbar"><span>Fontes PDF</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$objects[3] = &#x27;&lt;&lt; /Type /Font /Subtype /Type1 &#x27;
+  . &#x27;/BaseFont /Helvetica /Encoding /WinAnsiEncoding &gt;&gt;&#x27;;
+$objects[4] = &#x27;&lt;&lt; /Type /Font /Subtype /Type1 &#x27;
+  . &#x27;/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding &gt;&gt;&#x27;;</code></pre></div></section>
+<section><h2>Entrega do documento</h2><p>Após a solicitação, o servidor cria uma chave aleatória, guarda o relatório na sessão e retorna uma URL. O GET seguinte só funciona na mesma sessão e enquanto esse dado existir.</p><div class="code-example"><div class="code-toolbar"><span>Criação do download</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$key = bin2hex(random_bytes(16));
+$_SESSION[&#x27;reports&#x27;][$key] = [
+  &#x27;text&#x27; =&gt; $state[&#x27;report_text&#x27;]
+];
+respond([
+  &#x27;resposta&#x27; =&gt; &#x27;O relatório foi diagramado.&#x27;,
+  &#x27;download&#x27; =&gt; &#x27;teste_openai.php?pdf=&#x27; . $key
+]);</code></pre></div></section><footer><b>JOIA Docs</b><span>Referência da versão 1.6</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>

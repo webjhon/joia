@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.1. -->
-<meta name="application-version" content="1.1" />
+<!-- Versão 1.2. -->
+<meta name="application-version" content="1.2" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -95,6 +95,7 @@ body {
 }
 .side-btn.active { color:var(--accent); border-color:#2ee59d88; background:#153126; }
 .side-spacer{ flex:1 }
+.app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; opacity:.65; user-select:none; }
 
 .notes-panel { position:fixed; inset:20px 20px 20px 118px; z-index:10; display:none; grid-template-rows:auto 1fr auto; padding:20px; background:#0b1217f5; border:1px solid #2ee59d55; border-radius:var(--radius); box-shadow:var(--shadow); }
 .notes-panel.open { display:grid; }
@@ -259,6 +260,7 @@ body {
     <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
     <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
+    <small class="app-version" title="Versão da JOIA">v1.2</small>
   </aside>
 
   <main class="terminal">

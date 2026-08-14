@@ -32,6 +32,8 @@ orientações pedagógicas de `treinamento.txt`.
    Nunca envie o arquivo real ao GitHub nem compartilhe seu conteúdo.
 5. Garanta que a extensão PHP cURL esteja habilitada e que o usuário do servidor
    possa escrever no diretório `memoria/`.
+   O backend evita recursos exclusivos do PHP 8 para continuar compatível com
+   instalações Hostinger que ainda executam PHP 7.4.
 6. Acesse a aplicação. Para desenvolvimento local, execute
    `php -S localhost:8000` e abra `http://localhost:8000`.
 

@@ -40,7 +40,7 @@ const MAX_MESSAGE_LENGTH = 4000;
 const HISTORY_WINDOW = 12;
 const ADMIN_TOKEN_HASH = 'f04e14dd48355876aef4b1e970cef7ae1fb74bf937c9845aca08675d03c9ca5b'; // sha256 de 91332211
 
-function respond(array $payload, int $status = 200): never
+function respond(array $payload, int $status = 200): void
 {
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -90,7 +90,9 @@ function allStudents(): array
         $item = json_decode((string) file_get_contents($path), true);
         if (is_array($item) && isset($item['id'], $item['profile']['full_name'])) $students[] = $item;
     }
-    usort($students, fn(array $a, array $b): int => strcasecmp($a['profile']['full_name'], $b['profile']['full_name']));
+    usort($students, static function (array $a, array $b): int {
+        return strcasecmp($a['profile']['full_name'], $b['profile']['full_name']);
+    });
     return $students;
 }
 
@@ -136,8 +138,12 @@ function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false): 
 
 function conversation(string $id): array
 {
-    $_SESSION['conversations'] ??= [];
-    $_SESSION['conversations'][$id] ??= ['stage' => 'welcome', 'draft' => [], 'admin' => null];
+    if (!isset($_SESSION['conversations']) || !is_array($_SESSION['conversations'])) {
+        $_SESSION['conversations'] = [];
+    }
+    if (!isset($_SESSION['conversations'][$id])) {
+        $_SESSION['conversations'][$id] = ['stage' => 'welcome', 'draft' => [], 'admin' => null];
+    }
     return $_SESSION['conversations'][$id];
 }
 
@@ -145,7 +151,13 @@ function storeConversation(string $id, array $state): void { $_SESSION['conversa
 
 function onboardingReply(string $stage, string $message, array $draft): array
 {
-    $needed = match ($stage) { 'welcome' => 'nome completo e como prefere ser chamado', 'name' => 'turma ou curso', default => 'instituição, unidade ou escola' };
+    if ($stage === 'welcome') {
+        $needed = 'nome completo e como prefere ser chamado';
+    } elseif ($stage === 'name') {
+        $needed = 'turma ou curso';
+    } else {
+        $needed = 'instituição, unidade ou escola';
+    }
     $prompt = "Você conduz o cadastro inicial da JOIA. A mensagem original do usuário foi: " . json_encode($message, JSON_UNESCAPED_UNICODE) . ". " .
         "Interrompa o assunto original com gentileza. Explique brevemente que identificar corretamente cada aluno protege o histórico em computadores compartilhados e permite suporte personalizado. " .
         "Nesta etapa, obtenha {$needed}. Não faça perguntas de conteúdo acadêmico. Dados já obtidos: " . json_encode($draft, JSON_UNESCAPED_UNICODE) . ". " .
@@ -161,7 +173,9 @@ function studentTable(array $students): string
     $lines = ["| Nº | Aluno | Turma/curso | Instituição | Interações |", "|---:|---|---|---|---:|"];
     foreach ($students as $i => $student) {
         $p = $student['profile']; $count = intdiv(count($student['history'] ?? []), 2);
-        $clean = fn(string $v): string => str_replace('|', '/', $v);
+        $clean = static function (string $value): string {
+            return str_replace('|', '/', $value);
+        };
         $lines[] = sprintf('| %d | %s | %s | %s | %d |', $i + 1, $clean($p['full_name']), $clean($p['class']), $clean($p['institution']), $count);
     }
     return implode("\n", $lines) . "\n\nQual aluno você deseja analisar? Informe o número ou o nome.";
@@ -170,7 +184,10 @@ function studentTable(array $students): string
 function findStudent(string $choice, array $students): ?array
 {
     if (ctype_digit(trim($choice))) return $students[(int) $choice - 1] ?? null;
-    $needle = normalize($choice); $matches = array_values(array_filter($students, fn($s) => str_contains(normalize($s['profile']['full_name']), $needle)));
+    $needle = normalize($choice);
+    $matches = array_values(array_filter($students, static function (array $student) use ($needle): bool {
+        return $needle !== '' && strpos(normalize($student['profile']['full_name']), $needle) !== false;
+    }));
     return count($matches) === 1 ? $matches[0] : null;
 }
 
@@ -200,7 +217,10 @@ function buildPdf(string $title, string $body): string
         $objects[$contentId] = "<< /Length " . strlen($stream) . " >>\nstream\n{$stream}\nendstream";
     }
     $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
-    $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', array_map(fn($id) => "$id 0 R", $pageIds)) . '] /Count ' . count($pageIds) . ' >>';
+    $pageReferences = array_map(static function (int $id): string {
+        return $id . ' 0 R';
+    }, $pageIds);
+    $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', $pageReferences) . '] /Count ' . count($pageIds) . ' >>';
     $objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'; ksort($objects);
     $pdf = "%PDF-1.4\n"; $offsets = [0];
     foreach ($objects as $id => $object) { $offsets[$id] = strlen($pdf); $pdf .= "$id 0 obj\n$object\nendobj\n"; }

@@ -173,14 +173,49 @@ function recentCodeWasGiven(array $history): bool
     return false;
 }
 
-function enforcePedagogicalCodeLimit(string $answer, array $history): string
+function isExplicitCodeRequest(string $message): bool
+{
+    return preg_match('/\b(codigo|code|script|exemplo completo|solucao pronta|implementacao pronta)\b/', normalize($message)) === 1;
+}
+
+function consecutiveCodeRequests(string $message, array $history): int
+{
+    if (!isExplicitCodeRequest($message)) return 0;
+    $count = 1;
+    for ($index = count($history) - 1; $index >= 0; $index--) {
+        if (($history[$index]['role'] ?? '') !== 'user') continue;
+        if (!isExplicitCodeRequest((string) ($history[$index]['content'] ?? ''))) break;
+        $count++;
+    }
+    return $count;
+}
+
+function pedagogicalRetry(array $messages, string $message, int $insistence): string
+{
+    $direction = $insistence > 3
+        ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Explique agora, de forma dinâmica e ligada ao assunto, por que você guia em vez de entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”. Depois faça uma provocação útil.'
+        : 'Não anuncie recusa, não diga que não pode ou não quer fornecer código e não repita uma resposta-padrão. Responda diretamente ao conteúdo específico desta mensagem com uma explicação conceitual curta e uma nova pergunta provocativa que ajude o aluno a decidir o próximo passo.';
+    $instruction = 'A resposta anterior foi barrada por conter código demais. ' . $direction . ' Não inclua nenhuma linha de código nesta nova resposta. Mensagem atual: ' . json_encode($message, JSON_UNESCAPED_UNICODE) . '.';
+    $retryMessages = $messages;
+    array_splice($retryMessages, max(0, count($retryMessages) - 1), 0, [[ 'role' => 'system', 'content' => $instruction ]]);
+    return callOpenAI($retryMessages, 420);
+}
+
+function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages): string
 {
     $codeLines = codeLineCount($answer);
     if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))) return $answer;
 
-    return 'Vamos evitar uma solução pronta para preservar seu raciocínio. 💚 ' .
-        'Descreva primeiro, com suas palavras, qual é a menor parte que você precisa construir agora; ' .
-        'a partir da sua tentativa, eu ofereço uma pista conceitual e deixo o próximo espaço para você completar.';
+    $retry = pedagogicalRetry($messages, $message, consecutiveCodeRequests($message, $history));
+    if (codeLineCount($retry) === 0) return $retry;
+    $withoutCode = preg_replace('/```[^\n]*\n.*?```/s', '', $retry) ?? '';
+    if (trim($withoutCode) !== '') return trim($withoutCode);
+
+    $topic = trim(preg_replace('/\s+/', ' ', $message) ?? $message);
+    $topic = function_exists('mb_substr') ? mb_substr($topic, 0, 120, 'UTF-8') : substr($topic, 0, 120);
+    return consecutiveCodeRequests($message, $history) > 3
+        ? "O Profe João fica bravo 🤣 se eu montar tudo por você. Pensando em “{$topic}”, qual entrada e qual resultado você definiria primeiro?"
+        : "Pensando especificamente em “{$topic}”, qual entrada você já possui e qual resultado precisa obter antes de escolher a implementação?";
 }
 
 function conversation(string $id): array
@@ -352,7 +387,7 @@ try {
     $messages = [['role' => 'system', 'content' => systemPrompt()], ['role' => 'system', 'content' => 'Perfil confirmado: ' . json_encode($memory['profile'], JSON_UNESCAPED_UNICODE) . '. Continue o suporte sem repetir o cadastro.']];
     foreach (array_slice($history, -HISTORY_WINDOW) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
     $messages[] = ['role' => 'user', 'content' => $message];
-    $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history);
+    $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history, $message, $messages);
     $now = gmdate('c'); $history[] = ['role' => 'user', 'content' => $message, 'timestamp' => $now]; $history[] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
     $memory['history'] = $history; saveMemory($memory); respond(['resposta' => $answer, 'etapa' => 'conversation']);
 } catch (Throwable $error) { error_log('JOIA: ' . $error->getMessage()); respond(['erro' => $error->getMessage()], 502); }

@@ -1,6 +1,0 @@
-Aluno: 
-JOIA: Parece que você não forneceu informações sobre o seu histórico. Como posso ajudá-lo hoje? Você tem alguma dúvida específica sobre Java, Maven ou NetBeans? Vamos explorar isso juntos!
-
-Aluno: 
-JOIA: Parece que você não enviou uma mensagem. Que tal compartilhar o que você gostaria de aprender ou discutir sobre Java, Maven ou NetBeans? Estou aqui para ajudar você a descobrir! 😊
-

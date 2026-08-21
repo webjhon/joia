@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.6. -->
-<meta name="application-version" content="1.6" />
+<!-- Versão 1.7. -->
+<meta name="application-version" content="1.7" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -99,6 +99,54 @@ button, input, textarea { font-family: inherit; }
 .side-spacer{ flex:1 }
 .app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; opacity:.65; user-select:none; }
 
+/* Avatar is opt-in and loaded lazily, keeping the regular chat lightweight. */
+.avatar-panel {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 9;
+  top: 20px;
+  right: 20px;
+  width: min(380px, calc(100vw - 138px));
+  height: min(520px, calc(100vh - 40px));
+  display: none;
+  grid-template-rows: auto minmax(220px, 1fr) auto;
+  overflow: hidden;
+  background: #0b1217f5;
+  border: 1px solid #2ee59d55;
+  border-radius: var(--radius);
+  box-shadow: 0 18px 60px #000a;
+  backdrop-filter: blur(18px);
+}
+.avatar-panel.open { display: grid; }
+.avatar-header { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; padding:14px 15px; border-bottom:1px solid var(--border); }
+.avatar-header .action-btn { flex:0 0 auto; }
+.avatar-heading { display:flex; flex:1 1 auto; flex-direction:column; gap:2px; min-width:0; }
+.avatar-heading b, .avatar-heading small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.avatar-heading small, .avatar-status { color:#86a99c; font-size:10px; }
+.avatar-stage { position:relative; min-height:0; background:radial-gradient(circle at 50% 35%, #214e3c 0, #0b1714 45%, #070d10 100%); }
+#avatarCanvas { position:absolute; inset:0; }
+.avatar-loader { position:absolute; inset:0; display:grid; place-items:center; padding:24px; color:#a7c8bc; font-size:11px; text-align:center; pointer-events:none; }
+.avatar-loader.ready { display:none; }
+.avatar-controls { display:grid; gap:11px; padding:14px; border-top:1px solid var(--border); background:#0a1116e8; }
+.avatar-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.avatar-row label { flex:1; color:#a7c8bc; font-size:11px; }
+.avatar-select { min-width:145px; padding:7px 8px; color:var(--txt); background:#0b1217; border:1px solid #2ee59d44; border-radius:7px; font:inherit; font-size:11px; }
+.voice-actions { display:grid; grid-template-columns:1fr auto; gap:8px; }
+.avatar-speak { color:#06130e; background:var(--accent); border-color:transparent; font-weight:700; }
+.avatar-speak:hover { color:#06130e; background:#92f3ce; }
+.avatar-switch { display:flex; align-items:center; gap:7px; min-width:0; color:#a7c8bc; font-size:10px; cursor:pointer; white-space:nowrap; }
+.avatar-switch input { accent-color:#52dca6; }
+
+@media (max-width: 900px) {
+  .avatar-panel {
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
+    height: auto;
+  }
+}
+
 .notes-panel { position:fixed; inset:20px 20px 20px 118px; z-index:10; display:none; grid-template-rows:auto 1fr auto; padding:20px; background:#0b1217f5; border:1px solid #2ee59d55; border-radius:var(--radius); box-shadow:var(--shadow); }
 .notes-panel.open { display:grid; }
 .notes-header,.notes-actions { display:flex; align-items:center; gap:10px; }
@@ -141,6 +189,7 @@ button, input, textarea { font-family: inherit; }
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
 }
+.output.conversation { padding-bottom:max(38px, 55vh); }
 
 .output .msg {
   width: fit-content;
@@ -155,6 +204,7 @@ button, input, textarea { font-family: inherit; }
   overflow-wrap: anywhere;
   box-shadow: none;
 }
+.output .msg:last-of-type { scroll-margin-top: 22px; }
 .msg.user {
   margin-left: auto;
   background: #172028;
@@ -287,6 +337,7 @@ button, input, textarea { font-family: inherit; }
     padding: 18px 14px 22px;
     scrollbar-gutter: auto;
   }
+  .output.conversation { padding-bottom:max(22px, 50vh); }
 
   .output .msg {
     max-width: 92%;
@@ -346,6 +397,22 @@ button, input, textarea { font-family: inherit; }
   #openNotes::after { content: "Caderno"; }
   #newConversation::after { content: "Nova conversa"; }
 
+  .avatar-panel {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    grid-template-rows:auto minmax(140px, 1fr) auto;
+  }
+  .avatar-header { padding:max(14px, env(safe-area-inset-top)) 14px 12px; }
+  .avatar-heading b { font-size:13px; }
+  .avatar-heading small { font-size:9px; }
+  .avatar-controls { padding:12px 14px max(12px, env(safe-area-inset-bottom)); }
+  .avatar-row:last-of-type { flex-wrap:wrap; justify-content:space-between; }
+  .avatar-switch { flex:0 1 auto; }
+
   .notes-panel {
     inset: 0;
     padding: max(16px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
@@ -378,12 +445,13 @@ button, input, textarea { font-family: inherit; }
   <aside class="sidebar">
     <div class="brand">J🜲</div>
     <button class="side-btn" id="openNotes" title="Caderno de anotações" aria-label="Abrir caderno">📝</button>
+    <button class="side-btn" id="openAvatar" title="Avatar e voz" aria-label="Abrir avatar e voz">◉</button>
     <button class="side-btn" id="copyLast" title="Anotar última resposta" aria-label="Anotar última resposta">✚</button>
     <button class="side-btn" id="downloadNotes" title="Baixar anotações" aria-label="Baixar anotações">⇩</button>
     <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
     <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
-    <small class="app-version" title="Versão da JOIA">v1.6</small>
+    <small class="app-version" title="Versão da JOIA">v1.7</small>
   </aside>
 
   <main class="terminal">
@@ -418,10 +486,29 @@ button, input, textarea { font-family: inherit; }
   <div class="notes-actions"><span class="save-status" id="saveStatus">Salvo automaticamente neste dispositivo</span><button class="action-btn" id="saveNotes">Salvar agora</button></div>
 </section>
 
+<section class="avatar-panel" id="avatarPanel" aria-label="Avatar e voz da JOIA" aria-hidden="true">
+  <div class="avatar-header">
+    <div class="avatar-heading"><b>◉ Presença da JOIA</b><small>Avatar 3D e voz no seu dispositivo</small></div>
+    <button class="action-btn" id="closeAvatar" aria-label="Fechar avatar">Fechar</button>
+  </div>
+  <div class="avatar-stage">
+    <div id="avatarCanvas" aria-hidden="true"></div>
+    <div class="avatar-loader" id="avatarLoader">Ative o avatar para carregar a experiência 3D.</div>
+  </div>
+  <div class="avatar-controls">
+    <div class="avatar-row"><label for="avatarStyle">Estilo</label><select class="avatar-select" id="avatarStyle"><option value="natural">Natural</option><option value="anime">Anime</option></select></div>
+    <div class="avatar-row"><label for="avatarVoice">Voz</label><select class="avatar-select" id="avatarVoice"><option value="">Voz do dispositivo</option></select></div>
+    <div class="voice-actions"><button class="action-btn avatar-speak" id="speakLast">Ouvir última resposta</button><button class="action-btn" id="stopSpeaking" title="Parar leitura" aria-label="Parar leitura">■</button></div>
+    <div class="avatar-row"><label class="avatar-switch"><input type="checkbox" id="avatarEnabled"> Ativar avatar 3D</label><label class="avatar-switch"><input type="checkbox" id="autoSpeak"> Leitura automática</label></div>
+    <div class="avatar-status" id="avatarStatus" aria-live="polite">Desativado · nenhum recurso 3D foi carregado</div>
+  </div>
+</section>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
 <script>
-lucide.createIcons();
+window.lucide?.createIcons();
 
 const apiUrl = "teste_openai.php";
 const output = document.getElementById("output");
@@ -431,11 +518,46 @@ sessionStorage.setItem("joia_conversation_id", conversationId);
 const notesPanel = document.getElementById("notesPanel");
 const notesInput = document.getElementById("notesInput");
 const saveStatus = document.getElementById("saveStatus");
+const avatarPanel = document.getElementById("avatarPanel");
+const avatarLoader = document.getElementById("avatarLoader");
+const avatarStatus = document.getElementById("avatarStatus");
+const avatarEnabled = document.getElementById("avatarEnabled");
+const avatarStyle = document.getElementById("avatarStyle");
+const avatarVoice = document.getElementById("avatarVoice");
+const autoSpeak = document.getElementById("autoSpeak");
 let lastJoiaAnswer = "";
+let head = null;
+let mouthTimer = null;
+let avatarLoading = false;
 notesInput.value = localStorage.getItem("joia_notes") || "";
+avatarStyle.value = localStorage.getItem("joia_avatar_style") || "natural";
+avatarEnabled.checked = localStorage.getItem("joia_avatar_enabled") === "true";
+autoSpeak.checked = localStorage.getItem("joia_auto_speak") === "true";
+
+const avatarModels = {
+  natural: {
+    urls: [
+      "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@eed58d198076a7e1e825f804802921c4d3804d46/avatars/brunette-t.glb",
+      "https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/brunette-t.glb"
+    ],
+    body:"F", avatarMood:"neutral"
+  },
+  anime: {
+    urls: [
+      "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@eed58d198076a7e1e825f804802921c4d3804d46/avatars/vroid.glb",
+      "https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/vroid.glb"
+    ],
+    body:"F", avatarMood:"happy"
+  }
+};
+
+function focusMessage(element){
+  requestAnimationFrame(() => element.scrollIntoView({block:"start", behavior:"smooth"}));
+}
 
 function renderMessage(text, sender){
   document.getElementById("welcome")?.remove();
+  output.classList.add("conversation");
   const div = document.createElement("div");
   div.className = "msg " + sender;
   const label = document.createElement("b");
@@ -444,7 +566,8 @@ function renderMessage(text, sender){
   div.appendChild(document.createTextNode(text));
   div.style.whiteSpace = "pre-wrap";
   output.appendChild(div);
-  output.scrollTop = output.scrollHeight;
+  focusMessage(div);
+  return div;
 }
 
 function showThinking(){
@@ -453,11 +576,11 @@ function showThinking(){
   div.id = "thinking";
   div.innerHTML = '<b>JOIA:</b> Pensando igual Profe João <span class="thinking-dots"><span></span><span></span><span></span></span>';
   output.appendChild(div);
-  output.scrollTop = output.scrollHeight;
 }
 
 async function renderTypedMessage(text, downloadUrl = ""){
   document.getElementById("thinking")?.remove();
+  output.classList.add("conversation");
   const div = document.createElement("div");
   div.className = "msg joia";
   div.style.whiteSpace = "pre-wrap";
@@ -466,10 +589,10 @@ async function renderTypedMessage(text, downloadUrl = ""){
   const content = document.createTextNode("");
   div.append(label, content);
   output.appendChild(div);
+  focusMessage(div);
   const step = Math.max(1, Math.ceil(text.length / 80));
   for(let i = 0; i < text.length; i += step){
     content.nodeValue += text.slice(i, i + step);
-    output.scrollTop = output.scrollHeight;
     await new Promise(resolve => setTimeout(resolve, 12));
   }
   lastJoiaAnswer = text;
@@ -483,6 +606,77 @@ async function renderTypedMessage(text, downloadUrl = ""){
     div.appendChild(document.createElement("br"));
     div.appendChild(link);
   }
+  if(autoSpeak.checked) speakText(text);
+}
+
+function populateVoices(){
+  const voices = speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith("pt"));
+  const selected = localStorage.getItem("joia_voice") || "";
+  avatarVoice.replaceChildren(new Option("Voz do dispositivo", ""));
+  voices.forEach(voice => avatarVoice.add(new Option(`${voice.name} · ${voice.lang}`, voice.name)));
+  avatarVoice.value = voices.some(voice => voice.name === selected) ? selected : "";
+}
+
+function animateMouth(active){
+  clearInterval(mouthTimer);
+  mouthTimer = null;
+  if(!head) return;
+  head.setFixedValue("mouthOpen", 0, 80);
+  if(active){
+    mouthTimer = setInterval(() => head?.setFixedValue("mouthOpen", .18 + Math.random() * .5, 70), 110);
+  }
+}
+
+function speakText(text){
+  if(!text || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.replace(/[#*_`>-]/g, " "));
+  utterance.lang = "pt-BR";
+  const selectedVoice = speechSynthesis.getVoices().find(voice => voice.name === avatarVoice.value);
+  if(selectedVoice) utterance.voice = selectedVoice;
+  utterance.rate = .96;
+  utterance.pitch = 1.02;
+  utterance.onstart = () => { animateMouth(true); avatarStatus.textContent = "Falando agora…"; };
+  utterance.onend = utterance.onerror = () => { animateMouth(false); avatarStatus.textContent = head ? "Pronta para conversar" : "Voz pronta"; };
+  speechSynthesis.speak(utterance);
+}
+
+async function loadAvatar(){
+  if(avatarLoading || !avatarEnabled.checked) return;
+  avatarLoading = true;
+  avatarLoader.classList.remove("ready");
+  avatarLoader.textContent = "Preparando a presença 3D…";
+  avatarStatus.textContent = "Carregando somente agora…";
+  try {
+    const { TalkingHead } = await import("talkinghead");
+    if(!head){
+      head = new TalkingHead(document.getElementById("avatarCanvas"), { cameraView:"upper", modelFPS:30, modelPixelRatio:Math.min(devicePixelRatio, 1.5), avatarMood:"neutral" });
+    }
+    head.start();
+    const model = avatarModels[avatarStyle.value];
+    let modelError = null;
+    for(const [sourceIndex, url] of model.urls.entries()){
+      try {
+        await head.showAvatar({...model, url}, event => {
+          if(event.lengthComputable) avatarLoader.textContent = `Carregando avatar · ${Math.round(event.loaded / event.total * 100)}%`;
+        });
+        modelError = null;
+        break;
+      } catch(error){
+        modelError = error;
+        if(sourceIndex < model.urls.length - 1){
+          avatarLoader.textContent = "Tentando uma fonte alternativa do avatar…";
+        }
+      }
+    }
+    if(modelError) throw modelError;
+    avatarLoader.classList.add("ready");
+    avatarStatus.textContent = "Pronta para conversar";
+  } catch(error){
+    console.error(error);
+    avatarLoader.textContent = "Não foi possível carregar o 3D. A conversa e a voz continuam disponíveis.";
+    avatarStatus.textContent = "3D indisponível neste dispositivo";
+  } finally { avatarLoading = false; }
 }
 
 async function sendMsg(){
@@ -525,6 +719,33 @@ function saveNotes(){
 
 document.getElementById("openNotes").addEventListener("click", () => { notesPanel.classList.add("open"); notesInput.focus(); });
 document.getElementById("closeNotes").addEventListener("click", () => notesPanel.classList.remove("open"));
+document.getElementById("openAvatar").addEventListener("click", () => {
+  avatarPanel.classList.add("open");
+  avatarPanel.setAttribute("aria-hidden", "false");
+  if(avatarEnabled.checked) loadAvatar();
+});
+document.getElementById("closeAvatar").addEventListener("click", () => { avatarPanel.classList.remove("open"); avatarPanel.setAttribute("aria-hidden", "true"); });
+avatarEnabled.addEventListener("change", () => {
+  localStorage.setItem("joia_avatar_enabled", avatarEnabled.checked);
+  if(avatarEnabled.checked) loadAvatar();
+  else {
+    window.speechSynthesis?.cancel(); animateMouth(false); head?.stop();
+    avatarLoader.classList.remove("ready"); avatarLoader.textContent = "Avatar desativado para economizar bateria.";
+    avatarStatus.textContent = "Desativado · nenhum processamento 3D";
+  }
+});
+avatarStyle.addEventListener("change", async () => {
+  localStorage.setItem("joia_avatar_style", avatarStyle.value);
+  if(head && avatarEnabled.checked){ head.stop(); head = null; document.getElementById("avatarCanvas").replaceChildren(); await loadAvatar(); }
+});
+avatarVoice.addEventListener("change", () => localStorage.setItem("joia_voice", avatarVoice.value));
+autoSpeak.addEventListener("change", () => localStorage.setItem("joia_auto_speak", autoSpeak.checked));
+document.getElementById("speakLast").addEventListener("click", () => {
+  if(!lastJoiaAnswer) return alert("Converse com a JOIA antes de iniciar a leitura.");
+  speakText(lastJoiaAnswer);
+});
+document.getElementById("stopSpeaking").addEventListener("click", () => { window.speechSynthesis?.cancel(); animateMouth(false); avatarStatus.textContent = "Leitura interrompida"; });
+if('speechSynthesis' in window){ populateVoices(); speechSynthesis.onvoiceschanged = populateVoices; }
 document.getElementById("saveNotes").addEventListener("click", saveNotes);
 notesInput.addEventListener("input", saveNotes);
 document.getElementById("copyLast").addEventListener("click", () => {

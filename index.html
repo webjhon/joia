@@ -101,11 +101,12 @@ button, input, textarea { font-family: inherit; }
 
 /* Avatar is opt-in and loaded lazily, keeping the regular chat lightweight. */
 .avatar-panel {
+  box-sizing: border-box;
   position: fixed;
   z-index: 9;
   top: 20px;
   right: 20px;
-  width: min(340px, calc(100vw - 138px));
+  width: min(380px, calc(100vw - 138px));
   height: min(520px, calc(100vh - 40px));
   display: none;
   grid-template-rows: auto minmax(220px, 1fr) auto;
@@ -117,22 +118,34 @@ button, input, textarea { font-family: inherit; }
   backdrop-filter: blur(18px);
 }
 .avatar-panel.open { display: grid; }
-.avatar-header { display:flex; align-items:center; justify-content:space-between; padding:14px 15px; border-bottom:1px solid var(--border); }
-.avatar-heading { display:flex; flex-direction:column; gap:2px; }
+.avatar-header { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; padding:14px 15px; border-bottom:1px solid var(--border); }
+.avatar-header .action-btn { flex:0 0 auto; }
+.avatar-heading { display:flex; flex:1 1 auto; flex-direction:column; gap:2px; min-width:0; }
+.avatar-heading b, .avatar-heading small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .avatar-heading small, .avatar-status { color:#86a99c; font-size:10px; }
 .avatar-stage { position:relative; min-height:0; background:radial-gradient(circle at 50% 35%, #214e3c 0, #0b1714 45%, #070d10 100%); }
 #avatarCanvas { position:absolute; inset:0; }
 .avatar-loader { position:absolute; inset:0; display:grid; place-items:center; padding:24px; color:#a7c8bc; font-size:11px; text-align:center; pointer-events:none; }
 .avatar-loader.ready { display:none; }
 .avatar-controls { display:grid; gap:11px; padding:14px; border-top:1px solid var(--border); background:#0a1116e8; }
-.avatar-row { display:flex; align-items:center; gap:8px; }
+.avatar-row { display:flex; align-items:center; gap:8px; min-width:0; }
 .avatar-row label { flex:1; color:#a7c8bc; font-size:11px; }
 .avatar-select { min-width:145px; padding:7px 8px; color:var(--txt); background:#0b1217; border:1px solid #2ee59d44; border-radius:7px; font:inherit; font-size:11px; }
 .voice-actions { display:grid; grid-template-columns:1fr auto; gap:8px; }
 .avatar-speak { color:#06130e; background:var(--accent); border-color:transparent; font-weight:700; }
 .avatar-speak:hover { color:#06130e; background:#92f3ce; }
-.avatar-switch { display:flex; align-items:center; gap:7px; color:#a7c8bc; font-size:10px; cursor:pointer; }
+.avatar-switch { display:flex; align-items:center; gap:7px; min-width:0; color:#a7c8bc; font-size:10px; cursor:pointer; white-space:nowrap; }
 .avatar-switch input { accent-color:#52dca6; }
+
+@media (max-width: 900px) {
+  .avatar-panel {
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
+    height: auto;
+  }
+}
 
 .notes-panel { position:fixed; inset:20px 20px 20px 118px; z-index:10; display:none; grid-template-rows:auto 1fr auto; padding:20px; background:#0b1217f5; border:1px solid #2ee59d55; border-radius:var(--radius); box-shadow:var(--shadow); }
 .notes-panel.open { display:grid; }
@@ -388,10 +401,17 @@ button, input, textarea { font-family: inherit; }
     inset: 0;
     width: 100%;
     height: 100%;
+    max-width: none;
     border: 0;
     border-radius: 0;
-    grid-template-rows:auto minmax(260px, 1fr) auto;
+    grid-template-rows:auto minmax(140px, 1fr) auto;
   }
+  .avatar-header { padding:max(14px, env(safe-area-inset-top)) 14px 12px; }
+  .avatar-heading b { font-size:13px; }
+  .avatar-heading small { font-size:9px; }
+  .avatar-controls { padding:12px 14px max(12px, env(safe-area-inset-bottom)); }
+  .avatar-row:last-of-type { flex-wrap:wrap; justify-content:space-between; }
+  .avatar-switch { flex:0 1 auto; }
 
   .notes-panel {
     inset: 0;
@@ -515,8 +535,20 @@ avatarEnabled.checked = localStorage.getItem("joia_avatar_enabled") === "true";
 autoSpeak.checked = localStorage.getItem("joia_auto_speak") === "true";
 
 const avatarModels = {
-  natural: { url:"https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/brunette-t.glb", body:"F", avatarMood:"neutral" },
-  anime: { url:"https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/vroid.glb", body:"F", avatarMood:"happy" }
+  natural: {
+    urls: [
+      "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@eed58d198076a7e1e825f804802921c4d3804d46/avatars/brunette-t.glb",
+      "https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/brunette-t.glb"
+    ],
+    body:"F", avatarMood:"neutral"
+  },
+  anime: {
+    urls: [
+      "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@eed58d198076a7e1e825f804802921c4d3804d46/avatars/vroid.glb",
+      "https://raw.githubusercontent.com/met4citizen/TalkingHead/eed58d198076a7e1e825f804802921c4d3804d46/avatars/vroid.glb"
+    ],
+    body:"F", avatarMood:"happy"
+  }
 };
 
 function focusMessage(element){
@@ -621,9 +653,23 @@ async function loadAvatar(){
       head = new TalkingHead(document.getElementById("avatarCanvas"), { cameraView:"upper", modelFPS:30, modelPixelRatio:Math.min(devicePixelRatio, 1.5), avatarMood:"neutral" });
     }
     head.start();
-    await head.showAvatar(avatarModels[avatarStyle.value], event => {
-      if(event.lengthComputable) avatarLoader.textContent = `Carregando avatar · ${Math.round(event.loaded / event.total * 100)}%`;
-    });
+    const model = avatarModels[avatarStyle.value];
+    let modelError = null;
+    for(const [sourceIndex, url] of model.urls.entries()){
+      try {
+        await head.showAvatar({...model, url}, event => {
+          if(event.lengthComputable) avatarLoader.textContent = `Carregando avatar · ${Math.round(event.loaded / event.total * 100)}%`;
+        });
+        modelError = null;
+        break;
+      } catch(error){
+        modelError = error;
+        if(sourceIndex < model.urls.length - 1){
+          avatarLoader.textContent = "Tentando uma fonte alternativa do avatar…";
+        }
+      }
+    }
+    if(modelError) throw modelError;
     avatarLoader.classList.add("ready");
     avatarStatus.textContent = "Pronta para conversar";
   } catch(error){

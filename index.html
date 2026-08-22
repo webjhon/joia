@@ -125,6 +125,25 @@ button, input, textarea { font-family: inherit; }
 .avatar-heading small, .avatar-status { color:#86a99c; font-size:10px; }
 .avatar-stage { position:relative; min-height:0; background:radial-gradient(circle at 50% 35%, #214e3c 0, #0b1714 45%, #070d10 100%); }
 #avatarCanvas { position:absolute; inset:0; }
+.compat-avatar { position:absolute; inset:0; display:grid; place-items:center; overflow:hidden; perspective:700px; }
+.compat-bust { position:relative; width:190px; height:245px; transform:rotateX(-2deg); filter:drop-shadow(0 18px 18px #0008); }
+.compat-body { position:absolute; left:18px; right:18px; bottom:-54px; height:132px; border-radius:50% 50% 18% 18%; background:radial-gradient(circle at 50% 4%,#5df0b8 0 7%,#12835f 38%,#064734 100%); border:1px solid #7effce55; box-shadow:inset 14px 5px 24px #afffe933,inset -18px -8px 28px #001b13aa; }
+.compat-neck { position:absolute; z-index:2; left:71px; bottom:61px; width:48px; height:50px; border-radius:14px 14px 24px 24px; background:linear-gradient(90deg,#c98f77,#f0bda4 48%,#b97b67); }
+.compat-head { position:absolute; z-index:3; left:38px; top:15px; width:114px; height:144px; border-radius:48% 48% 46% 46% / 42% 42% 55% 55%; background:radial-gradient(circle at 35% 28%,#ffd7bd,#e7aa8f 58%,#b66f5f 100%); box-shadow:inset 10px 4px 16px #fff5d744,inset -12px -6px 18px #6f2d3055,0 8px 20px #0007; }
+.compat-hair { position:absolute; z-index:5; left:-8px; right:-8px; top:-9px; height:60px; border-radius:52% 52% 38% 38%; background:radial-gradient(circle at 34% 20%,#50616d,#15222b 45%,#060b0f 100%); box-shadow:-8px 35px 0 -2px #101a22,8px 35px 0 -2px #101a22; }
+.compat-face { position:absolute; z-index:6; inset:54px 0 0; }
+.compat-eye { position:absolute; top:0; width:22px; height:13px; border-radius:50%; background:#eefdf7; border:2px solid #17382f; box-shadow:0 0 0 4px #0b1b1888; animation:compat-blink 5.2s infinite; }
+.compat-eye::after { content:""; position:absolute; left:7px; top:2px; width:7px; height:7px; border-radius:50%; background:#1a9d74; box-shadow:inset 0 0 0 2px #063b2e,0 0 5px #5bffc7; }
+.compat-eye.left { left:23px; }
+.compat-eye.right { right:23px; }
+.compat-glasses { position:absolute; top:-5px; left:15px; width:84px; height:25px; border-top:2px solid #153d32; border-radius:50%; }
+.compat-nose { position:absolute; left:53px; top:21px; width:8px; height:16px; border-radius:50%; background:linear-gradient(90deg,#bd7d69,#f5c3a9); box-shadow:1px 2px 3px #5b292644; }
+.compat-mouth { position:absolute; left:44px; top:50px; width:27px; height:7px; border-radius:50% 50% 45% 45%; background:#8d3045; box-shadow:inset 0 -2px #43141f; transition:height .08s ease,transform .08s ease; }
+.compat-avatar.speaking .compat-mouth { animation:compat-talk .22s infinite alternate; }
+.compat-gem { position:absolute; z-index:6; left:79px; bottom:19px; width:32px; height:32px; transform:rotate(45deg); border-radius:6px; background:linear-gradient(135deg,#d6fff1,#54e7b2 35%,#087a58); box-shadow:0 0 18px #4fffc2aa,inset 4px 4px 7px #fff8; animation:compat-gem 2.4s ease-in-out infinite; }
+@keyframes compat-blink { 0%,44%,48%,100%{transform:scaleY(1)} 46%{transform:scaleY(.08)} }
+@keyframes compat-talk { from{height:6px;transform:scaleX(.9)} to{height:17px;transform:scaleX(.65)} }
+@keyframes compat-gem { 0%,100%{translate:0 0;box-shadow:0 0 14px #4fffc288} 50%{translate:0 -4px;box-shadow:0 0 25px #4fffc2dd} }
 .avatar-loader { position:absolute; inset:0; display:grid; place-items:center; padding:24px; color:#a7c8bc; font-size:11px; text-align:center; pointer-events:none; }
 .avatar-loader.ready { display:none; }
 .avatar-controls { display:grid; gap:11px; padding:14px; border-top:1px solid var(--border); background:#0a1116e8; }
@@ -615,6 +634,22 @@ function speakText(text){
   speechSynthesis.speak(utterance);
 }
 
+function createCompatibleAvatar(container){
+  container.innerHTML = `<div class="compat-avatar" aria-hidden="true">
+    <div class="compat-bust"><div class="compat-body"></div><div class="compat-neck"></div>
+      <div class="compat-head"><div class="compat-hair"></div><div class="compat-face">
+        <span class="compat-eye left"></span><span class="compat-eye right"></span><span class="compat-glasses"></span>
+        <span class="compat-nose"></span><span class="compat-mouth"></span>
+      </div></div><div class="compat-gem"></div>
+    </div></div>`;
+  const element = container.querySelector(".compat-avatar");
+  return {
+    start(){}, stop(){},
+    setSpeaking(active){ element.classList.toggle("speaking", Boolean(active)); },
+    dispose(){ container.replaceChildren(); }
+  };
+}
+
 async function loadAvatar(){
   if(avatarLoading || !avatarEnabled.checked) return;
   avatarLoading = true;
@@ -630,9 +665,11 @@ async function loadAvatar(){
     avatarLoader.classList.add("ready");
     avatarStatus.textContent = "Pronta para conversar";
   } catch(error){
-    console.error(error);
-    avatarLoader.textContent = "Este dispositivo não conseguiu iniciar o WebGL. A conversa e a voz continuam disponíveis.";
-    avatarStatus.textContent = "3D indisponível neste dispositivo";
+    console.warn("JOIA: WebGL indisponível; usando renderização compatível.", error);
+    head = createCompatibleAvatar(document.getElementById("avatarCanvas"));
+    head.start();
+    avatarLoader.classList.add("ready");
+    avatarStatus.textContent = "Pronta para conversar · modo compatível";
   } finally { avatarLoading = false; }
 }
 

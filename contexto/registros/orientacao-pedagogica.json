@@ -1,0 +1,11 @@
+{
+  "titulo": "Pistas de código e redirecionamento pedagógico",
+  "situacao": "historico",
+  "fonte": "Commits 402f2b3 e 32ad186; treinamento.txt, NEGATIVEPROMPTS.TXT e teste_openai.php",
+  "termos": ["chat", "pedagogia", "código", "pistas", "insistência", "prompts", "teste_openai.php"],
+  "pedidos": [],
+  "decisoes": [
+    "As instruções orientam a JOIA a ensinar com explicações e pistas graduais, sem entregar soluções completas.",
+    "O backend verifica a quantidade de código na resposta e o histórico recente. Quando precisa pedir outra resposta ao modelo, usa a mensagem atual e a sequência de pedidos de código para orientar a reformulação."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "titulo": "Entregar alterações sempre por pull request",
+  "situacao": "aprovada",
+  "fonte": "Conversa de configuração da JOIA no Codex, 25/11/2026",
+  "termos": ["GitHub", "PR", "pull request", "entrega", "branch", "merge"],
+  "pedidos": [
+    "preciso que sempre me entregue um PR para efetuar as mudanças"
+  ],
+  "decisoes": [
+    "Entregar mudanças de repositório em um pull request e incluir o link na resposta para revisão."
+  ]
+}

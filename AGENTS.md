@@ -1,0 +1,8 @@
+# Desenvolvimento da JOIA
+
+- O pedido atual define o escopo. Preserve os comportamentos já aprovados nas partes que o pedido não abrange. Peça autorização antes de ampliar o escopo quando a mudança depender de alterar outro comportamento.
+- Antes de editar, leia `contexto/README.md` e rode `python3 contexto/buscar.py "termos do pedido e componentes afetados"` a partir da raiz. Abra os registros encontrados e confira a situação, a fonte e o código atual. Use o histórico como referência. As instruções atuais do usuário prevalecem sobre registros anteriores.
+- Antes de concluir, confira o diff contra o pedido e verifique os comportamentos afetados. Registre em `contexto/registros/` os pedidos e decisões de desenvolvimento relevantes desta tarefa, inclusive correções e autorizações de escopo, seguindo o formato documentado. Atualize a situação de uma decisão anterior quando ela for explicitamente substituída e vincule o novo registro.
+- Retire credenciais, dados de alunos e outros dados privados dos registros. Inspecione o conteúdo antes de incluí-lo no Git.
+
+- Entregue toda mudança no repositório em um pull request para a branch de destino. Trabalhe em uma branch separada, rode as verificações pertinentes e inclua o link do PR na resposta. Deixe o merge para o usuário, salvo autorização explícita.

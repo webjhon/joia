@@ -1,0 +1,15 @@
+{
+  "titulo": "Continuidade entre tarefas e autorização de escopo",
+  "situacao": "aprovada",
+  "fonte": "Conversa de configuração da JOIA no Codex, 25/11/2026",
+  "termos": ["contexto", "RAG", "referência", "escopo", "regressão", "autorização", "AGENTS.md"],
+  "pedidos": [
+    "Sinto que ela perde muita referencia após cada modificação e eu tenho que fazer outro prompt pedindo pra voltar algo que foi mudado sem meu concentimento. Gostaria de adicionar os prompts anteriores a janela de contexto, e fazer um circuito rag pra organizar a leitura destes contextos.",
+    "Pode fazer por favor, os prompts de outras conversas não estão guardados (a não ser no codex, mas as conversas anteriores parecem ter sumido com a mudança no layout), mas podemos fazer isso com os prompts a partir de agora, se as outras taks que fiz no layout anterior do codex não estão mais em lugar algum"
+  ],
+  "decisoes": [
+    "O usuário aprovou iniciar a memória com esta conversa e registrar pedidos de desenvolvimento a partir de agora.",
+    "Preservar comportamentos fora do escopo e consultar o usuário se for necessário ampliar o pedido.",
+    "A recuperação local alimenta o contexto do Codex durante o desenvolvimento da JOIA."
+  ]
+}

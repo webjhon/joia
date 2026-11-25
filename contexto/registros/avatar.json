@@ -1,0 +1,11 @@
+{
+  "titulo": "Avatar local, voz única e compatibilidade sem WebGL",
+  "situacao": "historico",
+  "fonte": "Commits e2595cf e bacc42b, integrados pelos PRs #21 e #22",
+  "termos": ["avatar", "3D", "WebGL", "voz", "fala", "index.html", "joia-avatar.mjs"],
+  "pedidos": [],
+  "decisoes": [
+    "O histórico Git registra a introdução do avatar 3D local e da voz única.",
+    "O histórico Git registra um fallback de avatar para ambientes sem WebGL."
+  ]
+}

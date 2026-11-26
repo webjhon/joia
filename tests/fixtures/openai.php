@@ -75,15 +75,30 @@ function curl_exec(CurlHandle $handle): string|bool
     $nativeWindFourLines = "```jsx\n<View\n  className=\n  \"p-4 rounded-lg\"\n/>\n```";
     $animatedFourLines = "```jsx\nAnimated.timing(opacidade, {\n  toValue: 1,\n  useNativeDriver: true,\n}).start();\n```";
     $invalidJump = "```jsx\nfunction Jump() {\n  return <View />;\n}\n```";
+    $omittedOpacitySnippet = str_contains($latest, 'animar a opacidade de zero a um');
+    $omittedInterpolationSnippet = str_contains($latest, 'mapear dois intervalos com interpolate');
     $pieces = match ($kind) {
         'report' => ['## Síntese do percurso', "\n\n", 'A estudante comparou o eixo principal e o transversal.'],
         'onboarding' => ['Informação registrada. Siga para a próxima etapa do cadastro.'],
         'pedagogical_retry' => match (true) {
+            $omittedOpacitySnippet => str_contains($system, 'entregue a caixa de código dentro do limite')
+                ? ["O valor animado define a opacidade.\n\n", $animatedFourLines]
+                : ["Use o valor animado na propriedade de opacidade da Animated.View.\n\n", 'Confira se o elemento começa invisível e aparece gradualmente.'],
+            $omittedInterpolationSnippet => str_contains($system, 'entregue a caixa de código dentro do limite')
+                ? ["Use o primeiro intervalo para a entrada.\n\n", "```jsx\nvalor.interpolate({ inputRange: [0, 1], outputRange: [10, 20] });\n```"]
+                : ["Use um intervalo de entrada e outro de saída.\n\n", 'Teste os valores em cada extremo.'],
             str_contains($latest, 'começar um salto') => [$invalidJump],
             str_contains($latest, 'conferir um contorno discreto') => ["Aplique a classe no contêiner externo.\n\n", $nativeWindFourLines],
             default => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
         },
         default => match (true) {
+            $omittedOpacitySnippet => [
+                "A opacidade aumenta quando o valor animado vai de zero a um.\n\n",
+                "Aqui está um trecho curto para testar.\n\n",
+                "### O que este código faz\n\n",
+                'O elemento aparece gradualmente.',
+            ],
+            $omittedInterpolationSnippet => ["Na interpolação, cada valor de entrada corresponde a uma saída.\n\n", 'Segue um trecho curto para observar os extremos.'],
             str_contains($latest, 'começar um salto') => [$invalidJump],
             str_contains($latest, 'arredondar a borda do cartão') => [$prefix, $nativeWindFourLines],
             str_contains($latest, 'começar a animar a opacidade') => ["## Conexão\n\n", "O valor animado controla a opacidade.\n\n", $animatedFourLines],

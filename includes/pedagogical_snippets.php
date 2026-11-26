@@ -101,3 +101,65 @@ function joiaSnippetLooksComplete(string $code): bool
     if (preg_match('/\bon[A-Z][A-Za-z]*\s*=|<[a-z][\w-]*[\s\/>]/', $code)) return true;
     return preg_match_all('/<[A-Z][\w.]*(?=[\s\/>])/', $code) > 3;
 }
+
+function joiaHasVisibleCodeFence(string $answer): bool
+{
+    return preg_match('/^\h*```[\w.+-]*\h*\R(.*?)^\h*```\h*(?=\r?$)/ms', $answer, $block) === 1
+        && trim($block[1]) !== '';
+}
+
+function joiaClaimsCodeIsShown(string $text, bool $includeReferences = true): bool
+{
+    $text = normalize($text);
+    if (preg_match('/\b(?:aqui esta|aqui vai|segue)\b.{0,80}\b(?:codigo|trecho|bloco)\b/', $text)) return true;
+    return $includeReferences && preg_match('/\b(?:o que (?:este|esse|o) codigo (?:faz|mostra)'
+        . '|(?:teste|experimente|copie|execute|rode|veja) (?:este|esse|o) (?:codigo|trecho)'
+        . '|(?:codigo|trecho|bloco) (?:acima|abaixo|a seguir|mostrado))\b/', $text) === 1;
+}
+
+function joiaWantsProse(string $message): bool
+{
+    return preg_match('/\b(?:sem (?:nenhum )?codigo|em palavras|exemplo conceitual|pseudocodigo|so em texto)\b/', normalize($message)) === 1;
+}
+
+function joiaAskedForCodeExample(string $message): bool
+{
+    $text = normalize($message);
+    if (joiaWantsProse($message)
+        || preg_match('/\b(?:explic\w*|revis\w*|analis\w*) (?:o |a )?(?:meu|minha) (?:codigo|trecho|implementacao)\b/', $text)) {
+        return false;
+    }
+    return preg_match('/\b(?:exemplo|trecho|pedaco de codigo|sintaxe|fragmento)\b/', $text) === 1;
+}
+
+function joiaContextualCodeExample(string $topic, string $message, array $history): ?string
+{
+    $learnerMessages = [normalize($message)];
+    foreach (array_reverse(array_slice($history, -4)) as $turn) {
+        if (($turn['role'] ?? '') === 'user') $learnerMessages[] = normalize((string) ($turn['content'] ?? ''));
+    }
+    foreach ($learnerMessages as $text) {
+        if ($topic === 'animated' && preg_match('/\b(?:opacidade|fade(?: in| out)?|fadein|fadeout|(?:aparecer|desaparecer|sumir) suavemente)\b/', $text)) {
+            $fadeOut = preg_match('/\b(?:fade ?out|desaparec\w*|sumir|(?:de )?(?:um|1) (?:a|para|ate) (?:zero|0))\b/', $text);
+            $start = $fadeOut ? 1 : 0;
+            $target = $fadeOut ? 0 : 1;
+            $effect = $fadeOut ? 'invisível' : 'visível';
+            return "Com um valor animado de opacidade iniciado em {$start}, vincule esse valor ao estilo da `Animated.View`. "
+                . "Esta chamada leva o valor até {$target}, tornando o elemento {$effect} gradualmente.\n\n"
+                . "```jsx\nAnimated.timing(opacidade, {\n  toValue: {$target},\n  duration: 500, useNativeDriver: true,\n}).start();\n```";
+        }
+        if ($topic === 'animated' && preg_match('/\b(?:pul\w*|salto|translatey|deslocamento vertical)\b/', $text)) {
+            return "Na posição de repouso, o deslocamento vertical é zero. Prepare um valor animado e ligue-o ao deslocamento da `Animated.View`. "
+                . "Valores negativos sobem, e voltar a zero faz o elemento aterrissar.\n\n"
+                . "```jsx\nconst salto = useRef(new Animated.Value(0)).current;\n<Animated.View style={{ transform: [{ translateY: salto }] }} />\n```";
+        }
+        if ($topic === 'nativewind' && preg_match('/\b(?:padding|espacamento interno|arredond\w*|rounded lg)\b/', $text)) {
+            $spacing = preg_match('/\b(?:padding|espacamento interno)\b/', $text);
+            $utility = $spacing ? 'p-4' : 'rounded-lg';
+            $effect = $spacing ? 'adiciona espaço entre a borda e os filhos' : 'arredonda os cantos';
+            return "Na `View` que precisa do ajuste, `{$utility}` {$effect}. Compare a mesma tela antes e depois de aplicar essa classe.\n\n"
+                . "```jsx\n<View className=\"{$utility}\" />\n```";
+        }
+    }
+    return null;
+}

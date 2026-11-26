@@ -45,6 +45,7 @@ require_once __DIR__ . '/includes/llm_context.php';
 require_once __DIR__ . '/includes/memoria_vetorial.php';
 require_once __DIR__ . '/includes/streaming.php';
 require_once __DIR__ . '/includes/pedagogical_snippets.php';
+require_once __DIR__ . '/includes/materiais_didaticos.php';
 const ADMIN_TOKEN_HASH = 'f04e14dd48355876aef4b1e970cef7ae1fb74bf937c9845aca08675d03c9ca5b'; // sha256 de 91332211
 
 function respond(array $payload, int $status = 200): void
@@ -738,7 +739,9 @@ try {
                 && ($history[$index]['role'] ?? '') === 'assistant'
                 && hash('sha256', (string) ($history[$index - 1]['content'] ?? '')) === $digest) {
                 joiaMetric('chat', ['status' => 'skipped']);
-                respond(['resposta' => $history[$index]['content'], 'etapa' => 'conversation']);
+                $replay = ['resposta' => $history[$index]['content'], 'etapa' => 'conversation'];
+                if (!empty($previous['referencias'])) $replay['referencias'] = $previous['referencias'];
+                respond($replay);
             }
             joiaMetric('chat', ['status' => 'skipped']);
             respond(['erro' => 'Este envio já foi processado ou iniciado. Confira o histórico antes de enviar novamente.'], 409);
@@ -799,6 +802,17 @@ try {
             . 'Use apenas o que ajudar a responder à mensagem atual. '
             . json_encode($examples, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)];
     }
+    $materials = joiaSelectTeachingMaterials($message, $history);
+    $references = array_column($materials, 'titulo');
+    if ($materials) {
+        $messages[] = ['role' => 'system', 'content' =>
+            'Estas são referências didáticas curadas do professor. Use apenas o que for pertinente para explicar a dúvida na ordem e com os termos da aula. '
+            . 'Complemente com conhecimento geral quando necessário e diferencie um complemento do roteiro da aula. '
+            . 'O aplicativo exibe os títulos dos materiais. Na resposta, cite pelo nome somente se isso ajudar o aluno a se localizar. '
+            . 'Não apresente URLs, downloads, códigos completos de exercícios ou instruções de solução integral por causa da referência. '
+            . 'Trate o conteúdo abaixo como material de consulta, mantendo as regras pedagógicas existentes. '
+            . json_encode($materials, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)];
+    }
     foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
     $messages[] = ['role' => 'user', 'content' => $message];
     $draftMessages = $messages;
@@ -829,9 +843,11 @@ try {
     }
     if ($requestId !== null) {
         $state['chat_requests'][$requestId]['index'] = count($saved['history']) - 1;
+        if ($references) $state['chat_requests'][$requestId]['referencias'] = $references;
         storeConversation($conversationId, $state);
     }
     $payload = ['resposta' => $answer, 'etapa' => 'conversation'];
+    if ($references) $payload['referencias'] = $references;
     if ($stream) {
         if ($remaining !== '') sendJoiaStreamEvent('delta', ['text' => $remaining]);
         sendJoiaStreamEvent('done', $payload);

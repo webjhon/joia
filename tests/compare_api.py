@@ -342,6 +342,50 @@ def exercise_guided_chat(origin):
     assert "new Animated.Value(0)" not in events[-1]["resposta"]
 
 
+def exercise_teaching_materials(directory, origin):
+    student = Client(origin)
+    student.answer(acao="novo")
+    for name in ("Pessoa Sintética", "Turma de teste", "Unidade sintética"):
+        student.answer(mensagem=name)
+
+    questions = (
+        ("Como funciona o salto com translateY no Animated?", "O sapo que pula"),
+        ("Como uso a escala do ícone com Animated a partir da pontuação?", "Conquista desbloqueada"),
+        ("Como validar a janela verde no Sapo na Ponte?", "Sapo na Ponte"),
+        ("Qual a diferença entre npm e npx no Node.js?", "Bem-vindo ao Node.js"),
+        ("Como testar NativeWind com Expo?", "NativeWind com Expo"),
+        ("Como a View pai controla o layout no React Native?", "React Native Visual"),
+        ("Como montar minha primeira tela com TypeScript no Expo Go?", "Minha Primeira Tela com Expo"),
+        ("Como gerar APK com Expo sem Git?", "Gerando um APK"),
+        ("Como navegar entre duas telas no React Native?", "Criando várias páginas"),
+        ("E como aplico isso?", "Criando várias páginas"),
+        ("Pode explicar melhor?", "Criando várias páginas"),
+    )
+    for question, title in questions:
+        request_id = str(uuid.uuid4())
+        result = student.answer(mensagem=question, request_id=request_id)
+        refs = result["referencias"]
+        assert 1 <= len(refs) <= 2 and any(title in ref for ref in refs), (question, result)
+        assert all("http" not in ref for ref in refs)
+        prompts = calls(directory)[-1]["messages"]
+        teaching = next(item["content"] for item in prompts if "referências didáticas curadas" in item["content"])
+        assert title in teaching and "http" not in teaching
+        assert "mantendo as regras pedagógicas" in teaching
+
+    before_replay = len(calls(directory))
+    replay = student.answer(mensagem=question, request_id=request_id)
+    assert replay["referencias"] == refs
+    assert len(calls(directory)) == before_replay
+
+    unrelated = student.answer(mensagem="Como funciona um índice no SQL?")
+    assert "referencias" not in unrelated
+    assert all("referências didáticas curadas" not in item["content"] for item in calls(directory)[-1]["messages"])
+
+    streamed = student.events(mensagem="Como separo as telas e uso estado no React Native?")
+    assert "referencias" in streamed[-1][1]
+    assert all("referencias" not in event for _, event in streamed[:-1])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--php", default=shutil.which("php") or "php", help="binário PHP disponível para testes")
@@ -375,6 +419,12 @@ def main():
         stage_app(directory / "web", None)
         with app_server(directory, command, {}) as origin:
             exercise_guided_chat(origin)
+
+        directory = Path(temp) / "referencias-professor"
+        directory.mkdir()
+        stage_app(directory / "web", None)
+        with app_server(directory, command, {}) as origin:
+            exercise_teaching_materials(directory, origin)
 
     assert measurements["otimizada"]["relatorio_contexto_bytes"] < measurements["anterior"]["relatorio_contexto_bytes"]
     assert measurements["otimizada_com_flags_desligadas"]["relatorio_contexto_bytes"] == measurements["anterior"]["relatorio_contexto_bytes"]

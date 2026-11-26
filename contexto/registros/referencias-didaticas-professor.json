@@ -1,0 +1,14 @@
+{
+  "titulo": "Materiais do professor nas respostas da JOIA",
+  "situacao": "aprovada",
+  "fonte": "Nove referências públicas indicadas pelo professor na conversa do Codex",
+  "termos": ["material didático", "Notion", "Expo", "NativeWind", "Animated", "React Native", "Node.js", "referências"],
+  "pedidos": [
+    "Usar a abordagem do professor como referência quando ajudar a resposta. Identificar o material pelo nome para os alunos da prova, sem oferecer links ou downloads."
+  ],
+  "decisoes": [
+    "Usar resumos verificados e limitar a seleção a dois materiais pertinentes por pergunta.",
+    "Incluir os roteiros de Animated, NativeWind, conceitos visuais, primeira tela, APK e telas separadas, além do guia de Node.js da lista enviada.",
+    "Exibir títulos em texto simples. O catálogo local complementa a memória pedagógica e o conhecimento geral, sem acrescentar consultas externas por resposta."
+  ]
+}

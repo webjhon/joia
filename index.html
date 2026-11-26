@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.9. -->
-<meta name="application-version" content="1.9" />
+<!-- Versão 1.10. -->
+<meta name="application-version" content="1.10" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -97,7 +97,7 @@ button, input, textarea { font-family: inherit; }
 }
 .side-btn.active { color:var(--accent); border-color:#2ee59d88; background:#153126; }
 .side-spacer{ flex:1 }
-.app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; margin-inline-start: .6em; user-select:none; }
+.app-version { display:inline-block; flex-shrink:0; color:#baf3db; background:#142b24; border:1px solid #406a5c; border-radius:6px; padding:3px 7px; font-size:12px; line-height:1.3; white-space:nowrap; }
 
 /* Avatar is opt-in and loaded lazily, keeping the regular chat lightweight. */
 .avatar-panel {
@@ -181,6 +181,7 @@ button, input, textarea { font-family: inherit; }
   box-sizing: border-box;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
   backdrop-filter: blur(16px);
   background: var(--glass-strong);
   border: 1px solid var(--border);
@@ -198,6 +199,7 @@ button, input, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
 }
 
@@ -369,7 +371,7 @@ button, input, textarea { font-family: inherit; }
   body { height: 100dvh; }
 
   .app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     gap: 0;
     padding: 0;
@@ -388,7 +390,7 @@ button, input, textarea { font-family: inherit; }
     font-size: 12px;
   }
 
-  .terminal-header > div:last-child {
+  .terminal-tagline {
     max-width: 42%;
     color: #7aa998 !important;
     font-size: 9px;
@@ -489,7 +491,7 @@ button, input, textarea { font-family: inherit; }
 }
 
 @media (max-width: 380px) {
-  .terminal-header > div:last-child { display: none; }
+  .terminal-tagline { display: none; }
   .icebreakers { grid-template-columns: 1fr; }
   .welcome { margin-top: 18px; }
 }
@@ -517,8 +519,9 @@ button, input, textarea { font-family: inherit; }
 
   <main class="terminal">
     <header class="terminal-header">
-      <div><b>💎 JOIA • Terminal Educacional</b><small class="app-version" title="Versão da JOIA">v1.9</small></div>
-      <div style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
+      <div><b>💎 JOIA • Terminal Educacional</b></div>
+      <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
+      <small class="app-version" title="Versão da JOIA">v1.10</small>
     </header>
 
     <section id="output" class="output">
@@ -579,7 +582,7 @@ button, input, textarea { font-family: inherit; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
-<script src="./assets/chat/markdown.js"></script>
+<script src="./assets/chat/markdown.js?v=1.10"></script>
 <script>
 window.lucide?.createIcons();
 

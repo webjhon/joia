@@ -483,10 +483,10 @@ if ($action === 'reset') {
 $state = $_SESSION['conversations'][$conversationId] ?? null;
 
 try {
-    if ($action === 'novo' || $action === 'docente') {
-        if ($state === null) {
+    if ($action === 'novo') {
+        if ($state === null || (($state['student_onboarding'] ?? true) === false && empty($state['admin']))) {
             $state = conversation($conversationId);
-            $state['student_onboarding'] = $action === 'novo';
+            $state['student_onboarding'] = true;
             storeConversation($conversationId, $state);
         }
         respond(['etapa' => $state['stage']]);
@@ -507,7 +507,12 @@ try {
     }
     if ($action === 'estado' || $action === 'salvar_anotacoes') {
         if (!isset($state['student_id'])) {
-            if ($action === 'estado') respond(['etapa' => $state['stage'] ?? 'entrada', 'cadastro' => $state['student_onboarding'] ?? ($state !== null)]);
+            if ($action === 'estado') {
+                $admin = $state['admin'] ?? null;
+                if ($admin !== null) respond(['etapa' => 'admin_' . $admin]);
+                $onboarding = $state['student_onboarding'] ?? ($state !== null);
+                respond(['etapa' => $onboarding ? $state['stage'] : 'entrada']);
+            }
             respond(['erro' => 'Entre com seu código para salvar anotações.'], 401);
         }
         $studentId = $state['student_id'];
@@ -538,6 +543,7 @@ try {
             storeConversation($conversationId, $state);
         }
         $access = studentAccess($memory);
+        if (($state['admin'] ?? null) === 'token') $access['credencial_docente'] = true;
         if (isset($state['issued_code'])) $access['codigo'] = $state['issued_code'];
         respond($access);
     }
@@ -547,8 +553,16 @@ try {
     if (preg_match('/^[a-f0-9]{32}-[a-f0-9]{32}$/iD', $message)) {
         respond(['erro' => 'Use o código apenas na opção Já tenho um código.'], 422);
     }
+    if (normalize($message) === 'iprogram ger') {
+        if ($state === null) {
+            $state = conversation($conversationId);
+            $state['student_onboarding'] = false;
+        }
+        $state['admin'] = 'token';
+        storeConversation($conversationId, $state);
+        respond(['resposta' => '🔐 Área docente protegida. Informe o token de acesso para consultar os relatórios. O token não será armazenado no histórico.', 'etapa' => 'admin_token']);
+    }
     if ($state === null) respond(['erro' => 'Escolha como deseja entrar.'], 401);
-    if (normalize($message) === 'iprogram ger') { $state['admin'] = 'token'; storeConversation($conversationId, $state); respond(['resposta' => '🔐 Área docente protegida. Informe o token de acesso para consultar os relatórios. O token não será armazenado no histórico.', 'etapa' => 'admin_token']); }
     if ($state['admin'] === 'token') {
         if (!hash_equals(ADMIN_TOKEN_HASH, hash('sha256', $message))) respond(['resposta' => 'Token inválido. A área docente continua bloqueada; confira o token e tente novamente.', 'etapa' => 'admin_token'], 403);
         $state['admin'] = 'choose'; storeConversation($conversationId, $state); respond(['resposta' => "Acesso confirmado.\n\n" . studentTable(allStudents()), 'etapa' => 'admin_choose']);

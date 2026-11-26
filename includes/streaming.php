@@ -10,7 +10,8 @@ function startJoiaStream(): void
     header('Content-Type: ' . JOIA_STREAM_TYPE . '; charset=utf-8');
     header('Cache-Control: no-cache, no-store, no-transform');
     header('X-Accel-Buffering: no');
-    sendJoiaStreamEvent('start', ['mode' => 'paragraphs']);
+    header('X-Content-Type-Options: nosniff');
+    sendJoiaStreamEvent('start', ['mode' => 'paragraphs', 'stage' => 'context']);
 }
 
 function sendJoiaStreamEvent(string $type, array $payload = []): void
@@ -74,17 +75,21 @@ function withoutRepeatedJoiaOpening(string $text, string $opening): string
 
 function joiaParagraphMayBePublished(string $text): bool
 {
-    // Publish self-contained prose only. Code, structured Markdown, headings
-    // and lead-ins to material that may fail the full review all wait.
-    $prose = preg_replace('/(?<!`)`[\p{L}\p{N}_:-]{1,48}`(?!`)/u', 'termo', trim($text));
+    // Publish self-contained prose only. A heading can travel with its prose.
+    // Code, structured examples and lead-ins to them wait for the full review.
+    $prose = preg_replace('/(?<!`)`Animated\.(?:timing|spring|decay|Value)\(\h*\)`(?!`)/', 'método', trim($text));
+    if ($prose === null) return false;
+    $prose = preg_replace('/(?<!`)`[\p{L}\p{N}_.:-]{1,48}`(?!`)/u', 'termo', $prose);
     if ($prose === null || !preg_match('/[.!][*_]*$/u', $prose)) return false;
-    if (preg_match('/[`~<>{}=;|\\\\]|\w+\(|(?:[\w$]+\.\w+|\])\s*\(|^\h*(?:#|[-*+]\h|\d+[.)]\h)/mu', $prose)
-        || codeLineCount($prose) > 0) return false;
+    $body = preg_replace('/\A#{1,6}\h+[^\r\n]+\R\s*/u', '', $prose) ?? $prose;
+    if (trim($body) === '' || preg_match('/\w+\(|(?:[\w$]+\.\w+|\])\s*\(|^\h*(?:#|[-*+]\h|\d+[.)]\h)/mu', $body)
+        || codeLineCount($body) > 0) return false;
+    if (preg_match('/[`~<>{}=;|\\\\]/u', $prose)) return false;
     if (preg_match('/\b(?:vou|vamos|posso|irei)\s+(?:te\s+)?(?:mostrar|exibir|escrever|montar|dar|gerar)\b|\b(?:abaixo|a seguir|aqui est[áa] (?:um|o) exemplo|segue (?:um|o) exemplo)\b/iu', $prose)) {
         return false;
     }
-    return preg_match('/^(?:perfeito|claro|entendi|com certeza|boa|ótim[oa])(?:[!,.: ]|$)/iu', $prose) !== 1
-        || str_word_count(normalize($prose)) >= 9;
+    return preg_match('/^(?:perfeito|claro|entendi|com certeza|boa|ótim[oa])(?:[!,.: ]|$)/iu', $body) !== 1
+        || str_word_count(normalize($body)) >= 9;
 }
 
 final class JoiaAnswerStream
@@ -93,7 +98,7 @@ final class JoiaAnswerStream
     private string $buffer = '';
     private bool $atStart = true;
     private bool $hold = false;
-    private array $previousParagraphs = [];
+    private string $previousOpening = '';
 
     public function append(string $delta): void
     {
@@ -107,8 +112,15 @@ final class JoiaAnswerStream
         while (preg_match('/\r?\n\h*\r?\n/', $this->buffer, $separator, PREG_OFFSET_CAPTURE)) {
             [$ending, $offset] = $separator[0];
             $paragraph = substr($this->buffer, 0, $offset);
+            if (preg_match('/\A#{1,6}\h+[^\r\n]+\z/u', trim($paragraph))) {
+                $next = $offset + strlen($ending);
+                if (!preg_match('/\r?\n\h*\r?\n/', $this->buffer, $section, PREG_OFFSET_CAPTURE, $next)) return;
+                [$ending, $offset] = $section[0];
+                $paragraph = substr($this->buffer, 0, $offset);
+            }
+            $trimmed = trim($paragraph);
             if (!joiaParagraphMayBePublished($paragraph)
-                || in_array(joiaParagraphKey($paragraph), $this->previousParagraphs, true)) {
+                || withoutRepeatedJoiaOpening($trimmed, $this->previousOpening) !== $trimmed) {
                 $this->hold = true;
                 return;
             }
@@ -123,8 +135,7 @@ final class JoiaAnswerStream
 
     public function beginRetry(): void
     {
-        $paragraphs = preg_split('/\r?\n\h*\r?\n/', trim($this->published)) ?: [];
-        $this->previousParagraphs = array_map('joiaParagraphKey', $paragraphs);
+        $this->previousOpening = $this->published;
         $this->buffer = '';
         $this->atStart = true;
         $this->hold = false;

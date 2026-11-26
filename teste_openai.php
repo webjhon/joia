@@ -38,11 +38,13 @@ const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const MAX_MESSAGE_LENGTH = 4000;
 const HISTORY_WINDOW = 12;
+const JOIA_SNIPPETS_PER_STUDENT_SESSION = 3;
 
 require_once __DIR__ . '/includes/api_metrics.php';
 require_once __DIR__ . '/includes/llm_context.php';
 require_once __DIR__ . '/includes/memoria_vetorial.php';
 require_once __DIR__ . '/includes/streaming.php';
+require_once __DIR__ . '/includes/pedagogical_snippets.php';
 const ADMIN_TOKEN_HASH = 'f04e14dd48355876aef4b1e970cef7ae1fb74bf937c9845aca08675d03c9ca5b'; // sha256 de 91332211
 
 function respond(array $payload, int $status = 200): void
@@ -127,14 +129,15 @@ function issueStudentCode(array &$memory): string
     return $memory['id'] . '-' . $secret;
 }
 
-function studentAccess(array $memory): array
+function studentAccess(array $memory, bool $includeHistory = true): array
 {
-    return [
+    $access = [
         'etapa' => 'conversation',
-        'historico' => $memory['history'] ?? [],
         'anotacoes' => $memory['notes'] ?? '',
         'revisao' => $memory['notes_revision'] ?? 0,
     ];
+    if ($includeHistory) $access['historico'] = $memory['history'] ?? [];
+    return $access;
 }
 
 function allStudents(): array
@@ -276,52 +279,6 @@ function codeLineCount(string $answer): int
     return $count;
 }
 
-function isNativeWindTopic(string $message, array $history): bool
-{
-    $recentLearnerText = [$message];
-    foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
-        if (($item['role'] ?? '') === 'user') $recentLearnerText[] = (string) ($item['content'] ?? '');
-    }
-    return preg_match('/\bnativewind\b/i', implode("\n", $recentLearnerText)) === 1;
-}
-
-function nativeWindCanShowExample(string $message, array $history): bool
-{
-    $normalizedRequest = normalize($message);
-    if (preg_match('/\b(?:completo|completa|inteiro|inteira)\b/', $normalizedRequest)
-        || !preg_match('/\b(?:classes?|utilitari[oa]s?|classname|exemplo|sintaxe|como (?:uso|aplico|coloco)|qual (?:uso|era))\b/', $normalizedRequest)) {
-        return false;
-    }
-
-    $learnerMessages = [$message];
-    foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
-        if (($item['role'] ?? '') === 'user') $learnerMessages[] = (string) ($item['content'] ?? '');
-    }
-    // The prompt evaluates understanding. Require a concrete styling intent as a minimum.
-    foreach ($learnerMessages as $learnerMessage) {
-        $normalized = normalize($learnerMessage);
-        if (preg_match('/\b(?:quero|preciso|pretendo|tentei|usei|ja tenho|estou usando|minha ideia|vou|to tentando|queria|estou tentando)\b/', $normalized)
-            && preg_match('/\b(?:alinha\w*|centra\w*|espaca\w*|margem|padding|gap|coluna|linha|bordas?|largura|altura|cores?|fundo|opacidade|flex\w*|grid|sombra|lado|vertical|horizontal|fonte|tamanho|negrito|posicao)\b/', $normalized)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function nativeWindCodeIsAllowed(string $answer, int $codeLines, bool $canShowExample): bool
-{
-    if (preg_match('/<\/?[A-Za-z][\w.]*[\s\/>]/', $answer)) return false;
-    if (!str_contains($answer, '```') && !preg_match('/\bclassName\s*=/', $answer)) return $codeLines === 0;
-    if (!$canShowExample || $codeLines !== 1 || preg_match_all('/\bclassName\s*=/', $answer) !== 1) return false;
-
-    $block = '/^\h*```(?:jsx|tsx)?\h*\R\h*(className="[a-z0-9-]+(?::[a-z0-9-]+)*(?: [a-z0-9-]+(?::[a-z0-9-]+)*){0,2}")\h*\R\h*```\h*\r?$/m';
-    if (preg_match($block, $answer, $snippet, PREG_OFFSET_CAPTURE) !== 1 || strlen($snippet[1][0]) > 64) return false;
-
-    $rest = substr_replace($answer, '', $snippet[0][1], strlen($snippet[0][0]));
-    return !str_contains($rest, '```') && preg_match('/`[^`\n]*[=(){}<>;][^`\n]*`/', $rest) !== 1;
-}
-
-
 function recentCodeWasGiven(array $history): bool
 {
     $recent = array_slice($history, -12);
@@ -348,7 +305,7 @@ function consecutiveCodeRequests(string $message, array $history): int
     return $count;
 }
 
-function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, string $opening, ?callable $onDelta): string
+function pedagogicalRetry(array $messages, int $insistence, ?string $snippetTopic, string $opening, ?callable $onDelta): string
 {
     $direction = $insistence > 3
         ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Depois de responder à dúvida, explique brevemente por que você orienta sem entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”.'
@@ -363,46 +320,61 @@ function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, st
         . 'Se o aluno já compreendeu um conceito, avance para a aplicação em vez de repetir a definição. '
         . 'Faça uma única pergunta específica somente se faltar informação que mude a orientação. '
         . 'Evite aberturas genéricas e promessas de mostrar código. ' . $direction;
-    if ($nativeWind) {
-        $instruction .= ' Em NativeWind, você pode citar nomes de classes e de propriedades, inclusive className, '
-            . 'e indicar verbalmente em qual componente elas entram. Omita atribuições, JSX e caixas de código.';
+    $instruction .= ' Quebre a explicação em parágrafos curtos. Use **negrito** para o ponto central e, se ajudar, '
+        . 'uma dica marcada com 💡 ou uma lista curta de verificações.';
+    if ($snippetTopic === 'nativewind') {
+        $instruction .= ' Em NativeWind, cite a propriedade ou classe útil e diga em qual componente ela entra. '
+            . 'Para uma dúvida de instalação ou integração, indique como distinguir uma classe que não chega ao componente de uma falha de configuração.';
+    } elseif ($snippetTopic === 'animated') {
+        $instruction .= ' No Animated do React Native, explique como o valor muda, qual propriedade visual o recebe '
+            . 'ou como confirmar a conexão entre ambos, conforme a dificuldade do aluno.';
     }
     array_splice($messages, 1, 0, [['role' => 'system', 'content' => $instruction]]);
     if ($opening !== '') $messages[] = ['role' => 'assistant', 'content' => rtrim($opening)];
     return callOpenAI($messages, 420, onDelta: $onDelta, operation: 'pedagogical_retry');
 }
 
-function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages, ?JoiaAnswerStream $stream = null): string
-{
+function enforcePedagogicalCodeLimit(
+    string $answer, array $history, string $message, array $messages,
+    ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed
+): string {
     $codeLines = codeLineCount($answer);
-    $nativeWind = isNativeWindTopic($message, $history);
-    if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))
-        && (!$nativeWind || nativeWindCodeIsAllowed($answer, $codeLines, nativeWindCanShowExample($message, $history)))) {
+    if ($snippetTopic !== null) {
+        if ((!joiaSnippetAnswerHasCode($answer) && $codeLines === 0)
+            || ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic))) {
+            return $answer;
+        }
+    } elseif ($codeLines === 0 || ($codeLines <= 2 && !recentCodeWasGiven($history)
+        && !joiaSnippetAnswerIsAllowed($answer, 'nativewind') && !joiaSnippetAnswerIsAllowed($answer, 'animated'))) {
         return $answer;
     }
 
     $insistence = consecutiveCodeRequests($message, $history);
     $opening = $stream?->published() ?? '';
     $stream?->beginRetry();
-    $retry = pedagogicalRetry($messages, $insistence, $nativeWind, $opening, $stream ? [$stream, 'append'] : null);
+    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $opening, $stream ? [$stream, 'append'] : null);
     $retry = withoutRepeatedJoiaOpening($retry, $opening);
     if ($retry === '' && $opening !== '') return rtrim($opening);
     $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
     $combined = $opening . $prose;
-    if ($prose !== '' && codeLineCount($combined) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($combined, 0, false))) {
+    if ($prose !== '' && codeLineCount($combined) === 0 && ($snippetTopic === null || !joiaSnippetAnswerHasCode($combined))) {
         return $combined;
     }
     $published = $stream?->published() ?? '';
-    if ($nativeWind) {
-        return $published . 'Separe o efeito que você quer no contêiner do efeito em cada filho. '
-            . 'Para alinhar um grupo, observe a direção do contêiner que reúne esse grupo. '
-            . 'Para mudar o visual de um único elemento, verifique o estilo desse elemento. '
-            . 'Teste uma mudança de cada vez e confira qual região da tela foi afetada.';
-    }
-
-    $guidance = 'Isole o ponto em que o comportamento difere do esperado. '
-        . 'Teste com um caso pequeno e compare o que você esperava observar com o que de fato aconteceu.';
-    return $published . ($insistence > 3 ? 'O Profe João fica bravo 🤣 se eu montar tudo por você. ' : '') . $guidance;
+    $setup = $snippetTopic === 'nativewind'
+        && preg_match('/\b(?:cham\w*|instal\w*|config\w*|integr\w*|nenhuma classe|sem efeito|nao funciona)\b/', normalize($message));
+    $guidance = match (true) {
+        $setup => "**Teste se o estilo chega ao componente.** Aplique uma classe conhecida, como `bg-red-500`, na propriedade `className` de uma `View` simples.\n\n"
+            . "- **Se a cor mudar:** confira se o componente original recebe e repassa essa propriedade.\n"
+            . "- **Se a cor não mudar:** verifique a instalação do NativeWind e se a configuração inclui a pasta desse arquivo.",
+        $snippetTopic === 'nativewind' => "**Aplique a classe ao elemento que deve mudar.** Para organizar os filhos como grupo, ajuste o contêiner. Para mudar o visual de um filho, ajuste esse elemento.\n\n"
+            . "💡 **Teste rápido:** altere só uma classe e confira se o efeito apareceu na região esperada.",
+        $snippetTopic === 'animated' => "**Separe o valor do efeito visual.** Confira se o valor animado muda e se a propriedade de estilo está ligada a ele em uma `Animated.View`.\n\n"
+            . "💡 **Teste rápido:** diferencie uma falha ao iniciar a animação de uma falha ao ligar o valor ao estilo que deveria mudar.",
+        default => "**Isole onde o resultado muda.** Use um caso pequeno para reproduzir a dúvida.\n\n"
+            . "🔎 **Compare** o que você esperava observar com o que aconteceu e identifique o primeiro ponto de diferença.",
+    };
+    return $published . ($insistence > 3 ? "O Profe João fica bravo 🤣 se eu montar tudo por você.\n\n" : '') . $guidance;
 }
 
 function conversation(string $id): array
@@ -440,8 +412,7 @@ function onboardingReply(string $stage, string $message, array $draft): array
 {
     $value = onboardingValue($stage, $message);
     if ($value !== '' && strlen($value) <= 160 && getenv('JOIA_LOCAL_ONBOARDING') !== '0'
-        && !preg_match('/[?!
-]|(?:ajuda|não sei|nao sei)/ui', $message)
+        && !preg_match('/[?!\r\n]|(?:ajuda|não sei|nao sei)/ui', $message)
         && !preg_match('/^(?:oi|ola|bom dia|boa tarde|boa noite|como|por que|o que|onde|qual)/', normalize($message))) {
         $reply = match ($stage) {
             'welcome' => 'Prazer! A identificação ajuda a manter o seu histórico separado em computadores compartilhados. Qual é sua turma, curso, ano ou período?',
@@ -654,7 +625,7 @@ try {
         unset($_SESSION['reports']);
         session_regenerate_id(true);
         storeConversation($conversationId, ['stage' => 'conversation', 'student_id' => $memory['id'], 'admin' => null]);
-        respond(studentAccess($memory));
+        respond(studentAccess($memory, ($input['mostrar_historico'] ?? true) !== false));
     }
     if ($action === 'estado' || $action === 'salvar_anotacoes') {
         if (!isset($state['student_id'])) {
@@ -693,7 +664,7 @@ try {
             });
             storeConversation($conversationId, $state);
         }
-        $access = studentAccess($memory);
+        $access = studentAccess($memory, ($input['mostrar_historico'] ?? true) !== false);
         if (($state['admin'] ?? null) === 'token') $access['credencial_docente'] = true;
         if (isset($state['issued_code'])) $access['codigo'] = $state['issued_code'];
         respond($access);
@@ -778,6 +749,13 @@ try {
     } else {
         $requestId = null;
     }
+    $snippetTopic = joiaSnippetTopic($message, $history);
+    $snippetUsed = (int) ($_SESSION['student_snippets'][$state['student_id']] ?? 0);
+    $snippetAllowed = $snippetTopic !== null && $snippetUsed < JOIA_SNIPPETS_PER_STUDENT_SESSION
+        && !joiaSnippetWantsFullSolution($message);
+    $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
+    $stream = $streaming ? new JoiaAnswerStream() : null;
+    if ($stream) startJoiaStream();
     $messages = [['role' => 'system', 'content' => systemPrompt()], ['role' => 'system', 'content' => 'Perfil confirmado: ' . json_encode($memory['profile'], JSON_UNESCAPED_UNICODE) . '. Continue o suporte sem repetir o cadastro.']];
     $window = HISTORY_WINDOW;
     $vectorDirectory = getenv('JOIA_VECTOR_DIR');
@@ -824,19 +802,21 @@ try {
     foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
     $messages[] = ['role' => 'user', 'content' => $message];
     $draftMessages = $messages;
-    if (isNativeWindTopic($message, $history) && nativeWindCanShowExample($message, $history) && !recentCodeWasGiven($history)) {
-        array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.']]);
+    if ($snippetTopic !== null) {
+        $exampleInstruction = $snippetAllowed
+            ? joiaSnippetInstruction($snippetTopic)
+            : 'Nesta resposta, mantenha a orientação em palavras. Cite propriedades e classes pelo nome e dê um teste específico sem incluir código.';
+        array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' => $exampleInstruction]]);
     }
-    $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
-    $stream = $streaming ? new JoiaAnswerStream() : null;
     if ($stream) {
-        startJoiaStream();
+        sendJoiaStreamEvent('phase', ['phase' => 'answer']);
         array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' =>
-            'Comece com um parágrafo curto que já esclareça algo concreto da dúvida em palavras. '
-            . 'Separe-o do próximo parágrafo com uma linha em branco. Evite elogio sozinho, promessas de exemplo e chamadas para um trecho abaixo.']]);
+            'Escreva primeiro uma resposta direta de uma ou duas frases completas, em um parágrafo curto. '
+            . 'Deixe uma linha em branco antes da próxima parte. Use seções, listas ou exemplos depois desse parágrafo, '
+            . 'quando ajudarem. Evite elogio sozinho, promessas de exemplo e chamadas para um trecho abaixo.']]);
     }
     $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null);
-    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream);
+    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed);
     $remaining = $stream?->remaining($answer);
     $saved = updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
         $now = gmdate('c');
@@ -844,6 +824,9 @@ try {
         $item['history'][] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
         return $item;
     });
+    if ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic)) {
+        $_SESSION['student_snippets'][$state['student_id']] = $snippetUsed + 1;
+    }
     if ($requestId !== null) {
         $state['chat_requests'][$requestId]['index'] = count($saved['history']) - 1;
         storeConversation($conversationId, $state);

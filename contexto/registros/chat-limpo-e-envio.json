@@ -1,0 +1,12 @@
+{
+  "titulo": "Pergunta visível durante o envio e retomada com chat limpo",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["streaming", "retomada", "chat limpo", "histórico", "latência", "UX", "caderno"],
+  "pedidos": ["Manter a pergunta visível durante o processamento e abrir um chat limpo após login com código, usando o histórico pedagógico no servidor."],
+  "decisoes": [
+    "O campo mantém a pergunta até a confirmação. O servidor sinaliza o recebimento antes da recuperação vetorial, sem enviar pensamentos nem revelar o acesso docente.",
+    "O navegador não solicita o histórico anterior na retomada. O PHP pode usar a memória privada e o caderno continua sincronizado.",
+    "A resposta acumula parágrafos completos e pode liberar um título acompanhado da explicação, sem mudar parágrafos já publicados."
+  ]
+}

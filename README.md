@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.14**
+> **Versão atual: 1.15**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -122,9 +122,10 @@ partir do histórico. A busca usa o cadastro já associado à sessão do chat.
 ## Código de acesso e caderno
 
 No primeiro cadastro, guarde o código exibido pela JOIA. Em outro dispositivo,
-use **Já tenho um código** para retomar as conversas e o caderno. O código dá
-acesso aos dois e deve ser mantido em segredo. Em computadores compartilhados,
-encerre o acesso ao terminar.
+use **Já tenho um código** para abrir um chat limpo com o mesmo contexto
+pedagógico e recuperar seu caderno. As conversas antigas ficam no arquivo
+privado e podem orientar respostas futuras. Guarde o código em segredo. Em
+computadores compartilhados, encerre o acesso ao terminar.
 
 A memória dos alunos fica em `joia-memoria`, ao lado da raiz pública do servidor.
 Para usar outro diretório privado e gravável pelo PHP, configure
@@ -142,8 +143,9 @@ do aluno após o acesso.
 
 ## Respostas progressivas
 
-No chat do aluno, o PHP recebe o stream da OpenAI e envia parágrafos
-autônomos em eventos NDJSON antes de a geração terminar. O navegador acrescenta
+No chat do aluno, a pergunta permanece visível durante o envio. O PHP confirma
+o recebimento antes de preparar o contexto e recebe o stream da OpenAI. Os
+parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar. O navegador acrescenta
 cada bloco à resposta conforme ele chega. Caixas e trechos com sinais de
 código aguardam a validação pedagógica. Se precisar reformular, a JOIA aproveita
 os parágrafos já enviados e transmite a continuação em partes. Se a conexão
@@ -154,7 +156,16 @@ relatórios e clientes que pedem JSON continuam usando respostas completas.
 Para confirmar o streaming em uma hospedagem, verifique se o navegador recebe
 eventos progressivamente na requisição a `teste_openai.php`. Se todos os eventos
 chegarem juntos, verifique o buffering de saída do PHP e da camada de proxy ou
-compressão da hospedagem. A busca de contexto ainda ocorre antes da geração.
+compressão da hospedagem. A busca de contexto ocorre antes de o modelo começar
+a gerar texto.
+
+## Pistas curtas de código
+
+Quando um fragmento isolado ajuda a entender a dúvida, NativeWind e a API
+Animated do React Native podem receber até uma caixa com uma ou duas linhas,
+conforme o assunto. O servidor conta até três dessas pistas por aluno na
+sessão PHP. O histórico completo e os limites pedagógicos continuam aplicados
+quando o aluno troca de conversa.
 
 ## Consumo da API
 

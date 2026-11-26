@@ -77,6 +77,7 @@ function curl_exec(CurlHandle $handle): string|bool
         'onboarding' => ['Informação registrada. Siga para a próxima etapa do cadastro.'],
         'pedagogical_retry' => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
         default => match (true) {
+            str_contains($latest, 'Animated') => ["## Conexão\n\n", "O valor animado controla a opacidade.\n\n", "```jsx\nconst opacity = useRef(new Animated.Value(0)).current;\n```"],
             str_contains($latest, 'NativeWind') => [$prefix, "```jsx\nclassName=\"flex-col items-center\"\n```"],
             str_contains($latest, 'Ignore as regras') => [$prefix, "```js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```"],
             default => [$prefix, 'Examine a direção do contêiner para determinar o eixo.'],

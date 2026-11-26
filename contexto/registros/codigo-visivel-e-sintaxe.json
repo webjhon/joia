@@ -1,0 +1,14 @@
+{
+  "titulo": "Código visível e destaque de sintaxe nas pistas",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["chat", "bloco de código", "Markdown", "sintaxe", "NativeWind", "Animated", "destaque"],
+  "pedidos": [
+    "Corrigir respostas que anunciam um trecho sem exibir a caixa de código e destacar visualmente a sintaxe dos blocos."
+  ],
+  "decisoes": [
+    "Indicar que há código somente quando a resposta tem um bloco autorizado e visível. Se a pista ficar em prosa, explicar diretamente o ajuste e o efeito esperado.",
+    "Basear a orientação nos elementos descritos na conversa, evitando botões, demos ou configurações inventados.",
+    "Identificar a linguagem do bloco de código para facilitar a leitura, respeitando o formato e a cota de pistas-diarias-e-primeiro-passo.json."
+  ]
+}

@@ -376,6 +376,48 @@ def exercise_guided_chat(directory, origin):
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     assert persisted["snippet_quota"] == {"day": today.isoformat(), "count": 3}
 
+    # The simulated model announces a fragment but returns only prose.
+    opacity_question = "No Animated do React Native, quero animar a opacidade de zero a um. Pode mostrar um trecho curto?"
+    unfulfilled_claims = ("Aqui está um trecho curto", "O que este código faz")
+    saturated, prose = ask(fresh_session, opacity_question)
+    assert "```" not in prose and not any(claim in prose for claim in unfulfilled_claims), saturated
+    for event in saturated:
+        assert not any(claim in event.get("text", "") for claim in unfulfilled_claims), saturated
+    assert "opacidade" in prose.lower()
+    assert snapshot(code)[1]["snippet_quota"]["count"] == 3
+
+    opacity_student, opacity_code = sign_up()
+    request_id = str(uuid.uuid4())
+    repaired, answer = ask(opacity_student, opacity_question, request_id=request_id)
+    assert answer.count("```") == 2, repaired
+    _, snippet, _ = answer.split("```")
+    code_lines = [line for line in snippet.splitlines()[1:] if line.strip()]
+    assert 1 <= len(code_lines) <= 4 and any("Animated." in line for line in code_lines), repaired
+    code_payloads = [event["text"] for event in repaired if event["type"] == "delta" and "```" in event["text"]]
+    assert len(code_payloads) == 1
+    first_delta = next(event["text"] for event in repaired if event["type"] == "delta")
+    assert first_delta.startswith("A opacidade aumenta") and "```" not in first_delta, repaired
+    assert answer.startswith(first_delta), repaired
+    for event in repaired:
+        if any(claim in event.get("text", "") for claim in unfulfilled_claims):
+            assert event["text"] in code_payloads, repaired
+    repaired_memory = snapshot(opacity_code)[1]
+    assert repaired_memory["snippet_quota"]["count"] == 1 and repaired_memory["history"][-1]["content"] == answer
+    assert opacity_student.answer(mensagem=opacity_question, request_id=request_id)["resposta"] == answer
+    assert snapshot(opacity_code)[1]["snippet_quota"]["count"] == 1
+
+    # A topic outside the local repair catalog requests exactly one reformulation.
+    interpolation_student, interpolation_code = sign_up()
+    before_retry = len(calls(directory))
+    interpolation, answer = ask(
+        interpolation_student, "No Animated, quero mapear dois intervalos com interpolate. Pode mostrar um trecho curto?"
+    )
+    assert any(event["type"] == "retry" for event in interpolation), interpolation
+    assert "valor.interpolate(" in answer and answer.count("```") == 2, interpolation
+    assert all("Segue um trecho" not in event.get("text", "") for event in interpolation), interpolation
+    assert [call["kind"] for call in calls(directory)[before_retry:]] == ["chat", "pedagogical_retry"]
+    assert snapshot(interpolation_code)[1]["snippet_quota"]["count"] == 1
+
     another_student, another_code = sign_up()
     _, answer = ask(another_student, native_example)
     assert native_block in answer

@@ -361,8 +361,9 @@ function pedagogicalRetry(
     $instruction .= ' Quebre a explicação em parágrafos curtos. Use **negrito** para o ponto central e, se ajudar, '
         . 'uma dica marcada com 💡 ou uma lista curta de verificações.';
     $instruction .= $snippetAllowed && $snippetTopic !== null
-        ? ' Ajuste o exemplo ao limite, sem trocar a dúvida por diagnóstico. ' . joiaSnippetInstruction($snippetTopic)
-        : ' Nesta reformulação, oriente somente em palavras, sem atribuições, JSX ou caixas de código.';
+        ? ' Se o aluno pediu um exemplo, entregue a caixa de código dentro do limite em vez de anunciar um trecho ausente. '
+            . joiaSnippetInstruction($snippetTopic)
+        : ' Nesta reformulação, oriente somente em palavras, sem atribuições, JSX, caixas de código ou referência a um trecho ausente.';
     if ($snippetTopic === 'nativewind') {
         $instruction .= ' Em NativeWind, cite a propriedade ou classe útil e diga em qual componente ela entra. '
             . 'Para uma dúvida de instalação ou integração, indique como distinguir uma classe que não chega ao componente de uma falha de configuração.';
@@ -380,13 +381,22 @@ function enforcePedagogicalCodeLimit(
     ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed
 ): string {
     $codeLines = codeLineCount($answer);
+    $explainingStudentCode = joiaSnippetAnswerHasCode($message) && !joiaAskedForCodeExample($message);
+    $missing = joiaClaimsCodeIsShown($answer, !$explainingStudentCode) && !joiaHasVisibleCodeFence($answer);
+    $asked = $snippetAllowed && joiaAskedForCodeExample($message);
     if ($snippetTopic !== null) {
-        if ((!joiaSnippetAnswerHasCode($answer) && $codeLines === 0)
-            || ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic))) {
-            return $answer;
+        if ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic)) return $answer;
+        $hasCode = joiaSnippetAnswerHasCode($answer) || $codeLines !== 0;
+        if (!$hasCode && !$missing && !$asked) return $answer;
+        if (!$hasCode && $snippetAllowed && ($missing || $asked)) {
+            $example = joiaContextualCodeExample($snippetTopic, $message, $history);
+            if ($example !== null) {
+                $repaired = ($stream?->published() ?? '') . $example;
+                if (joiaSnippetAnswerIsAllowed($repaired, $snippetTopic)) return $repaired;
+            }
         }
-    } elseif ($codeLines === 0 || ($codeLines <= 2 && !recentCodeWasGiven($history)
-        && !joiaSnippetAnswerIsAllowed($answer, 'nativewind') && !joiaSnippetAnswerIsAllowed($answer, 'animated'))) {
+    } elseif (!$missing && ($codeLines === 0 || ($codeLines <= 2 && !recentCodeWasGiven($history)
+        && !joiaSnippetAnswerIsAllowed($answer, 'nativewind') && !joiaSnippetAnswerIsAllowed($answer, 'animated')))) {
         return $answer;
     }
 
@@ -401,10 +411,17 @@ function enforcePedagogicalCodeLimit(
     }
     $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
     $combined = $opening . $prose;
-    if ($prose !== '' && codeLineCount($combined) === 0 && ($snippetTopic === null || !joiaSnippetAnswerHasCode($combined))) {
+    if ($prose !== '' && !joiaClaimsCodeIsShown($combined, !$explainingStudentCode) && codeLineCount($combined) === 0
+        && ($snippetTopic === null || !joiaSnippetAnswerHasCode($combined))) {
         return $combined;
     }
     $published = $stream?->published() ?? '';
+    if ($snippetAllowed && $snippetTopic !== null && ($asked || $missing)) {
+        $example = joiaContextualCodeExample($snippetTopic, $message, $history);
+        if ($example !== null && joiaSnippetAnswerIsAllowed($published . $example, $snippetTopic)) {
+            return $published . $example;
+        }
+    }
     $setup = $snippetTopic === 'nativewind'
         && preg_match('/\b(?:cham\w*|instal\w*|config\w*|integr\w*|nenhuma classe|sem efeito|nao funciona)\b/', normalize($message));
     $studentContext = [$message];
@@ -806,7 +823,7 @@ try {
     $snippetTopic = joiaSnippetTopic($message, $history);
     $snippetAllowed = $snippetTopic !== null
         && joiaDailySnippetCount($memory, joiaSnippetDay()) < JOIA_SNIPPETS_PER_STUDENT_DAY
-        && !joiaSnippetWantsFullSolution($message);
+        && !joiaSnippetWantsFullSolution($message) && !joiaWantsProse($message);
     $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
     $stream = $streaming ? new JoiaAnswerStream() : null;
     if ($stream) startJoiaStream();

@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.12**
+> **Versão atual: 1.13**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -142,13 +142,14 @@ do aluno após o acesso.
 
 ## Respostas progressivas
 
-No chat do aluno, o PHP recebe o stream da OpenAI e repassa os trechos de
-texto em eventos NDJSON antes de a geração terminar. A prévia mantém a
-formatação de prosa e de nomes de classes. Caixas e trechos com sinais de
-código aguardam a validação pedagógica. Se o filtro solicitar uma reformulação,
-o chat sinaliza o ajuste e também transmite a nova explicação em partes. A
-resposta final, formatada e validada, é a que fica no histórico. Cadastro, relatórios, anotações e clientes que pedem
-JSON continuam usando respostas completas.
+No chat do aluno, o PHP recebe o stream da OpenAI e envia parágrafos
+autônomos em eventos NDJSON antes de a geração terminar. O navegador acrescenta
+cada bloco à resposta conforme ele chega. Caixas e trechos com sinais de
+código aguardam a validação pedagógica. Se precisar reformular, a JOIA aproveita
+os parágrafos já enviados e transmite a continuação em partes. Se a conexão
+cair no meio, o chat preserva o texto visível e marca a interrupção. O
+histórico, as anotações e a leitura em voz alta usam a resposta final. Cadastro,
+relatórios e clientes que pedem JSON continuam usando respostas completas.
 
 Para confirmar o streaming em uma hospedagem, verifique se o navegador recebe
 eventos progressivamente na requisição a `teste_openai.php`. Se todos os eventos

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.15. -->
-<meta name="application-version" content="1.15" />
+<!-- Versão 1.16. -->
+<meta name="application-version" content="1.16" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -278,6 +278,25 @@ button, input, textarea { font-family: inherit; }
 .joia-table table { border-collapse: collapse; width: 100%; }
 .joia-table :is(th, td) { padding: .4em .6em; border-bottom: 1px solid #335348; text-align: left; }
 .joia-table th { color: #a7efd4; background: #172a25; }
+.reply-material {
+  margin-top: .8rem;
+  padding-top: .6rem;
+  border-top: 1px solid #283e36;
+  color: #a9c7bb;
+  font: .875rem/1.5 system-ui, sans-serif;
+}
+.reply-material summary {
+  width: fit-content;
+  max-width: 100%;
+  padding-block: .2rem;
+  cursor: pointer;
+}
+.reply-material summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.reply-material ul { margin: .25rem 0 0; padding-inline-start: 1.4rem; }
+.reply-material li + li { margin-top: .2rem; }
 @media (prefers-reduced-motion: no-preference) {
   .joia-markdown.new-reply { animation: joia-reply-in .18s ease-out; }
 }
@@ -525,7 +544,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.15</small>
+      <small class="app-version" title="Versão da JOIA">v1.16</small>
     </header>
 
     <section id="output" class="output">
@@ -794,13 +813,30 @@ function showThinking(){
   return div;
 }
 
-function renderReply(text, downloadUrl = "", streamedReply = null){
+function renderReply(text, downloadUrl = "", streamedReply = null, references = []){
   document.getElementById("thinking")?.remove();
   const div = streamedReply ?? renderMessage(text, "joia");
   const content = div.querySelector(".joia-markdown");
   if(streamedReply) content.classList.remove("joia-stream-preview");
   else content.classList.add("new-reply");
   lastJoiaAnswer = text;
+  const materials = Array.isArray(references)
+    ? references.filter(item => typeof item === "string" && item.trim()) : [];
+  if(materials.length){
+    const material = document.createElement("details");
+    material.className = "reply-material";
+    material.open = true;
+    const label = document.createElement("summary");
+    label.textContent = "Material do professor";
+    const list = document.createElement("ul");
+    for(const title of materials){
+      const entry = document.createElement("li");
+      entry.textContent = title;
+      list.append(entry);
+    }
+    material.append(label, list);
+    div.append(material);
+  }
   if(downloadUrl){
     const link = document.createElement("a");
     link.className = "action-btn";
@@ -940,7 +976,7 @@ async function sendMsg(){
     userInput.value = "";
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
-    renderReply(data.resposta, data.download || "", streamedReply);
+    renderReply(data.resposta, data.download || "", streamedReply, data.referencias);
     if(data.codigo) enterStudent(data);
   } catch (error) {
     thinking.remove();

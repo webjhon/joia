@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.15**
+> **Versão atual: 1.16**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -170,3 +170,12 @@ quando o aluno troca de conversa.
 ## Consumo da API
 
 [A auditoria técnica e o guia de operação](documentacao/otimizacao-api.md) descrevem as métricas privadas, as opções de configuração e a comparação local.
+
+## Materiais do professor
+
+Em dúvidas relacionadas às aulas selecionadas, a JOIA usa até dois resumos
+curtos para seguir a abordagem do professor e sugerir uma leitura. O chat
+mostra apenas o nome do material, sem links ou arquivos. O catálogo fica em
+`includes/materiais_didaticos.php`. Ele pode ser atualizado por PR e não consulta
+sites ou o Notion durante a conversa. A seleção complementa o histórico e as
+regras pedagógicas do chat.

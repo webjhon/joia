@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.8. -->
-<meta name="application-version" content="1.8" />
+<!-- Versão 1.9. -->
+<meta name="application-version" content="1.9" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -97,7 +97,7 @@ button, input, textarea { font-family: inherit; }
 }
 .side-btn.active { color:var(--accent); border-color:#2ee59d88; background:#153126; }
 .side-spacer{ flex:1 }
-.app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; opacity:.65; user-select:none; }
+.app-version { color:#7aa998; font-size:9px; letter-spacing:.4px; margin-inline-start: .6em; user-select:none; }
 
 /* Avatar is opt-in and loaded lazily, keeping the regular chat lightweight. */
 .avatar-panel {
@@ -240,6 +240,44 @@ button, input, textarea { font-family: inherit; }
   border-left: 2px solid #4f8b75;
   color: #d5dfdb;
 }
+
+.joia-markdown {
+  font-family: system-ui, sans-serif;
+  font-size: clamp(.92rem, .45vw + .82rem, 1rem);
+  line-height: 1.65;
+  max-width: 68ch;
+}
+.joia-markdown > * { margin: 0 0 .8em; }
+.joia-markdown > :last-child { margin-bottom: 0; }
+.joia-markdown h3 { color: #a7efd4; font-size: 1.08em; line-height: 1.35; }
+.joia-markdown strong { color: #eef9f4; font-weight: 700; }
+.joia-markdown :is(ul, ol) { padding-inline-start: 1.55em; }
+.joia-markdown li + li { margin-top: .4em; }
+.joia-markdown li::marker { color: #84ceb1; font-weight: 650; }
+.joia-markdown code {
+  padding: .12em .35em;
+  border-radius: .3em;
+  background: #1d302b;
+  color: #bef2d9;
+  font-size: .88em;
+}
+.joia-markdown pre {
+  padding: .65em .85em;
+  border: 1px solid #335348;
+  border-radius: .5em;
+  background: #101b1a;
+  overflow-x: auto;
+}
+.joia-markdown pre code { padding: 0; background: transparent; }
+.joia-table { overflow-x: auto; }
+.joia-table table { border-collapse: collapse; width: 100%; }
+.joia-table :is(th, td) { padding: .4em .6em; border-bottom: 1px solid #335348; text-align: left; }
+.joia-table th { color: #a7efd4; }
+@media (prefers-reduced-motion: no-preference) {
+  .joia-markdown.new-reply { animation: joia-reply-in .18s ease-out; }
+}
+@keyframes joia-reply-in { from { opacity: .55; } to { opacity: 1; } }
+
 .output .msg > b:first-child {
   display: block;
   margin-bottom: 7px;
@@ -406,7 +444,6 @@ button, input, textarea { font-family: inherit; }
   }
   .sidebar .brand,
   .sidebar .side-spacer,
-  .sidebar .app-version,
   #copyLast,
   #downloadNotes,
   #clearNotes { display: none; }
@@ -476,12 +513,11 @@ button, input, textarea { font-family: inherit; }
     <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
     <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
-    <small class="app-version" title="Versão da JOIA">v1.8</small>
   </aside>
 
   <main class="terminal">
     <header class="terminal-header">
-      <div><b>💎 JOIA • Terminal Educacional</b></div>
+      <div><b>💎 JOIA • Terminal Educacional</b><small class="app-version" title="Versão da JOIA">v1.9</small></div>
       <div style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
     </header>
 
@@ -543,6 +579,7 @@ button, input, textarea { font-family: inherit; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
+<script src="./assets/chat/markdown.js"></script>
 <script>
 window.lucide?.createIcons();
 
@@ -697,8 +734,11 @@ function renderMessage(text, sender, scroll = true){
   const label = document.createElement("b");
   label.textContent = sender === "user" ? "Você: " : "JOIA: ";
   div.appendChild(label);
-  div.appendChild(document.createTextNode(text));
-  div.style.whiteSpace = "pre-wrap";
+  if(sender === "joia") div.append(renderJoiaMarkdown(text));
+  else {
+    div.append(document.createTextNode(text));
+    div.style.whiteSpace = "pre-wrap";
+  }
   output.appendChild(div);
   if(scroll) focusMessage(div);
   return div;
@@ -712,23 +752,10 @@ function showThinking(){
   output.appendChild(div);
 }
 
-async function renderTypedMessage(text, downloadUrl = ""){
+function renderReply(text, downloadUrl = ""){
   document.getElementById("thinking")?.remove();
-  output.classList.add("conversation");
-  const div = document.createElement("div");
-  div.className = "msg joia";
-  div.style.whiteSpace = "pre-wrap";
-  const label = document.createElement("b");
-  label.textContent = "JOIA: ";
-  const content = document.createTextNode("");
-  div.append(label, content);
-  output.appendChild(div);
-  focusMessage(div);
-  const step = Math.max(1, Math.ceil(text.length / 80));
-  for(let i = 0; i < text.length; i += step){
-    content.nodeValue += text.slice(i, i + step);
-    await new Promise(resolve => setTimeout(resolve, 12));
-  }
+  const div = renderMessage(text, "joia");
+  div.querySelector(".joia-markdown").classList.add("new-reply");
   lastJoiaAnswer = text;
   if(downloadUrl){
     const link = document.createElement("a");
@@ -828,12 +855,12 @@ async function sendMsg(){
     if(!adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
-    await renderTypedMessage(data.resposta, data.download || "");
+    renderReply(data.resposta, data.download || "");
     if(data.codigo) enterStudent(data);
   } catch (error) {
     document.getElementById("thinking")?.remove();
     if(atEntry) accessStatus.textContent = error.message;
-    else await renderTypedMessage(`⚠️ ${error.message}`);
+    else renderReply(`⚠️ ${error.message}`);
   } finally {
     enableChat();
   }

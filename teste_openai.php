@@ -226,33 +226,42 @@ function isNativeWindTopic(string $message, array $history): bool
     return preg_match('/\bnativewind\b/i', implode("\n", $recentLearnerText)) === 1;
 }
 
-function nativeWindCodeIsAllowed(string $answer, string $message, int $codeLines, array $history): bool
+function nativeWindCanShowExample(string $message, array $history): bool
 {
-    if (preg_match('/```|<\/?[A-Za-z][\w.]*[\s\/>]/', $answer)) return false;
-    if (!preg_match('/\bclassName\s*=/', $answer)) return $codeLines === 0;
-    if ($codeLines !== 1 || preg_match_all('/\bclassName\s*=/', $answer) !== 1) return false;
-    if (!preg_match('/\b(?:classe[s]?|utilitari[oa]s?|classname)\b/', normalize($message))) return false;
+    $normalizedRequest = normalize($message);
+    if (preg_match('/\b(?:completo|completa|inteiro|inteira)\b/', $normalizedRequest)
+        || !preg_match('/\b(?:classes?|utilitari[oa]s?|classname|exemplo|sintaxe|como (?:uso|aplico|coloco)|qual (?:uso|era))\b/', $normalizedRequest)) {
+        return false;
+    }
 
     $learnerMessages = [$message];
     foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
         if (($item['role'] ?? '') === 'user') $learnerMessages[] = (string) ($item['content'] ?? '');
     }
     // The prompt evaluates understanding. Require a concrete styling intent as a minimum.
-    $hasIntent = false;
     foreach ($learnerMessages as $learnerMessage) {
         $normalized = normalize($learnerMessage);
-        if (preg_match('/\b(?:quero|preciso|pretendo|tentei|usei|ja tenho|estou usando|minha ideia|vou)\b/', $normalized)
-            && preg_match('/\b(?:alinha\w*|centrali[zs]\w*|espaca\w*|margem|padding|gap|coluna|linha|bordas?|largura|altura|cores?|fundo|opacidade|flex\w*|grid|sombra|lado|vertical|horizontal|fonte|tamanho|negrito|posicao)\b/', $normalized)) {
-            $hasIntent = true;
-            break;
+        if (preg_match('/\b(?:quero|preciso|pretendo|tentei|usei|ja tenho|estou usando|minha ideia|vou|to tentando|queria|estou tentando)\b/', $normalized)
+            && preg_match('/\b(?:alinha\w*|centra\w*|espaca\w*|margem|padding|gap|coluna|linha|bordas?|largura|altura|cores?|fundo|opacidade|flex\w*|grid|sombra|lado|vertical|horizontal|fonte|tamanho|negrito|posicao)\b/', $normalized)) {
+            return true;
         }
     }
-    if (!$hasIntent || preg_match('/`(className="[a-z0-9-]+(?::[a-z0-9-]+)*(?: [a-z0-9-]+(?::[a-z0-9-]+)*){0,2}")`/', $answer, $snippet) !== 1
-        || strlen($snippet[1]) > 64) return false;
-
-    $rest = str_replace($snippet[0], '', $answer);
-    return preg_match('/`[^`\n]*[=(){}<>;][^`\n]*`/', $rest) !== 1;
+    return false;
 }
+
+function nativeWindCodeIsAllowed(string $answer, int $codeLines, bool $canShowExample): bool
+{
+    if (preg_match('/<\/?[A-Za-z][\w.]*[\s\/>]/', $answer)) return false;
+    if (!str_contains($answer, '```') && !preg_match('/\bclassName\s*=/', $answer)) return $codeLines === 0;
+    if (!$canShowExample || $codeLines !== 1 || preg_match_all('/\bclassName\s*=/', $answer) !== 1) return false;
+
+    $block = '/^\h*```(?:jsx|tsx)?\h*\R\h*(className="[a-z0-9-]+(?::[a-z0-9-]+)*(?: [a-z0-9-]+(?::[a-z0-9-]+)*){0,2}")\h*\R\h*```\h*\r?$/m';
+    if (preg_match($block, $answer, $snippet, PREG_OFFSET_CAPTURE) !== 1 || strlen($snippet[1][0]) > 64) return false;
+
+    $rest = substr_replace($answer, '', $snippet[0][1], strlen($snippet[0][0]));
+    return !str_contains($rest, '```') && preg_match('/`[^`\n]*[=(){}<>;][^`\n]*`/', $rest) !== 1;
+}
+
 
 function recentCodeWasGiven(array $history): bool
 {
@@ -297,17 +306,16 @@ function enforcePedagogicalCodeLimit(string $answer, array $history, string $mes
     $codeLines = codeLineCount($answer);
     $nativeWind = isNativeWindTopic($message, $history);
     if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))
-        && (!$nativeWind || nativeWindCodeIsAllowed($answer, $message, $codeLines, $history))) {
+        && (!$nativeWind || nativeWindCodeIsAllowed($answer, $codeLines, nativeWindCanShowExample($message, $history)))) {
         return $answer;
     }
 
     $retry = pedagogicalRetry($messages, $message, consecutiveCodeRequests($message, $history), $nativeWind);
-    if (codeLineCount($retry) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($retry, $message, 0, $history))) return $retry;
+    if (codeLineCount($retry) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($retry, 0, false))) return $retry;
     $withoutCode = trim(preg_replace('/```[^\n]*\n.*?```/s', '', $retry) ?? '');
     if (!$nativeWind && $withoutCode !== '') return $withoutCode;
     if ($nativeWind) {
-        if ($withoutCode !== '' && nativeWindCodeIsAllowed($withoutCode, $message, codeLineCount($withoutCode), $history)
-            && !preg_match('/\bclassName\s*=/', $withoutCode)) return $withoutCode;
+        if ($withoutCode !== '' && nativeWindCodeIsAllowed($withoutCode, codeLineCount($withoutCode), false)) return $withoutCode;
         return 'Qual efeito visual você quer obter e o que já tentou no componente? Assim consigo apontar a classe mais útil.';
     }
 
@@ -672,6 +680,9 @@ try {
         }
     }
     foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
+    if (isNativeWindTopic($message, $history) && nativeWindCanShowExample($message, $history) && !recentCodeWasGiven($history)) {
+        $messages[] = ['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.'];
+    }
     $messages[] = ['role' => 'user', 'content' => $message];
     $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history, $message, $messages);
     updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {

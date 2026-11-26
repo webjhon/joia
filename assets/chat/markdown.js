@@ -26,6 +26,14 @@ function renderJoiaMarkdown(text){
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const listPattern = /^\s*(?:(\d{1,9})[.)]|[-+*])\s+(.+)$/;
   const headingPattern = /^#{1,6}\s+(.+)$/;
+  let hasEmoji = /\p{Extended_Pictographic}/u.test(text);
+  function withTipIcon(line, heading = false){
+    if(hasEmoji) return line;
+    const label = line.match(/^\s*(?:\*\*)?(dica|atenção|cuidado)(?=\*\*|\s*:|$)/i);
+    if(!label || (!heading && !/^\s*(?:\*\*)?(?:dica|atenção|cuidado)(?:\*\*)?\s*:/i.test(line))) return line;
+    hasEmoji = true;
+    return (label[1].toLowerCase() === "dica" ? "💡 " : "⚠️ ") + line;
+  }
   const fencePattern = /^\s*```[\w+-]*\s*$/;
   const cells = line => line.trim().replace(/^\||\|$/g, "").split("|").map(cell => cell.trim());
   const tableStart = index => {
@@ -55,7 +63,7 @@ function renderJoiaMarkdown(text){
     const heading = line.match(headingPattern);
     if(heading){
       const title = document.createElement("h3");
-      appendJoiaInline(title, heading[1]);
+      appendJoiaInline(title, withTipIcon(heading[1], true));
       content.append(title);
       index++;
       continue;
@@ -106,7 +114,7 @@ function renderJoiaMarkdown(text){
       continue;
     }
     const paragraph = document.createElement("p");
-    appendJoiaInline(paragraph, line);
+    appendJoiaInline(paragraph, withTipIcon(line));
     index++;
     while(index < lines.length && lines[index].trim() && !headingPattern.test(lines[index])
       && !listPattern.test(lines[index]) && !fencePattern.test(lines[index]) && !tableStart(index)){

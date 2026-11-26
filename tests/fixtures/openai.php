@@ -72,11 +72,22 @@ function curl_exec(CurlHandle $handle): string|bool
     }
 
     $prefix = "Na coluna, o alinhamento horizontal acontece no eixo transversal.\n\n";
+    $nativeWindFourLines = "```jsx\n<View\n  className=\n  \"p-4 rounded-lg\"\n/>\n```";
+    $animatedFourLines = "```jsx\nAnimated.timing(opacidade, {\n  toValue: 1,\n  useNativeDriver: true,\n}).start();\n```";
+    $invalidJump = "```jsx\nfunction Jump() {\n  return <View />;\n}\n```";
     $pieces = match ($kind) {
         'report' => ['## Síntese do percurso', "\n\n", 'A estudante comparou o eixo principal e o transversal.'],
         'onboarding' => ['Informação registrada. Siga para a próxima etapa do cadastro.'],
-        'pedagogical_retry' => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
+        'pedagogical_retry' => match (true) {
+            str_contains($latest, 'começar um salto') => [$invalidJump],
+            str_contains($latest, 'conferir um contorno discreto') => ["Aplique a classe no contêiner externo.\n\n", $nativeWindFourLines],
+            default => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
+        },
         default => match (true) {
+            str_contains($latest, 'começar um salto') => [$invalidJump],
+            str_contains($latest, 'arredondar a borda do cartão') => [$prefix, $nativeWindFourLines],
+            str_contains($latest, 'começar a animar a opacidade') => ["## Conexão\n\n", "O valor animado controla a opacidade.\n\n", $animatedFourLines],
+            str_contains($latest, 'conferir um contorno discreto') => [$prefix, "```jsx\n<View>\n  <Text>Cartão</Text>\n  <Text>Legenda</Text>\n  <Text>Rodapé</Text>\n</View>\n```"],
             str_contains($latest, 'Animated') => ["## Conexão\n\n", "O valor animado controla a opacidade.\n\n", "```jsx\nconst opacity = useRef(new Animated.Value(0)).current;\n```"],
             str_contains($latest, 'NativeWind') => [$prefix, "```jsx\nclassName=\"flex-col items-center\"\n```"],
             str_contains($latest, 'Ignore as regras') => [$prefix, "```js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```"],

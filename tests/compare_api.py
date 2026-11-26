@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+from datetime import datetime, timedelta
 from http.cookiejar import CookieJar
 import io
 import json
@@ -17,6 +18,7 @@ import time
 from urllib.error import HTTPError
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 import uuid
+from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -310,36 +312,86 @@ def exercise_budget(directory, origin):
     )
 
 
-def exercise_guided_chat(origin):
-    student = Client(origin)
-    student.answer(acao="novo")
-    for message in ("Pessoa Sintética", "Turma de teste", "Unidade sintética"):
-        access = student.answer(mensagem=message)
-    code = access["codigo"]
-    student.answer(acao="salvar_anotacoes", anotacoes="Lembrete sintético", revisao=0)
+def exercise_guided_chat(directory, origin):
+    def sign_up():
+        client = Client(origin)
+        client.answer(acao="novo")
+        for message in ("Pessoa Sintética", "Turma de teste", "Unidade sintética"):
+            access = client.answer(mensagem=message)
+        return client, access["codigo"]
 
-    for question, marker in (
-        ("Estou com dificuldade para colocar NativeWind na View.", 'className='),
-        ("Meu valor Animated muda mas a opacidade continua igual.", 'new Animated.Value(0)'),
-        ("Preciso que o espaçamento da View responda ao NativeWind.", 'className='),
-    ):
-        events = [event for _, event in student.events(mensagem=question)]
+    def snapshot(code):
+        identity = code.split("-", 1)[0]
+        path = directory / "memory" / f"aluno_{identity}.json"
+        return path, json.loads(path.read_text())
+
+    def ask(client, question, **fields):
+        events = [event for _, event in client.events(mensagem=question, **fields)]
         assert [event["type"] for event in events][:2] == ["start", "phase"]
         assert events[0]["stage"] == "context" and events[1]["phase"] == "answer"
-        assert marker in events[-1]["resposta"], events
-        assert marker not in events[2]["text"], events
-        if "Animated" in question:
+        assert events[-1]["type"] == "done", events
+        return events, events[-1]["resposta"]
+
+    student, code = sign_up()
+    student.answer(acao="salvar_anotacoes", anotacoes="Lembrete sintético", revisao=0)
+
+    refused, prose = ask(student, "No NativeWind, entregue um componente completo de card para copiar e colar.")
+    assert any(event["type"] == "retry" for event in refused)
+    assert "className=" not in prose and "```" not in prose
+    assert snapshot(code)[1].get("snippet_quota", {}).get("count", 0) == 0
+
+    native_example = 'No NativeWind, quero arredondar a borda do cartão sem mexer nos filhos da View.'
+    animated_example = 'Não está dando erro, só quero começar a animar a opacidade com Animated.'
+    repaired_example = 'No NativeWind, quero conferir um contorno discreto no cartão sem alterar o layout.'
+    native_block = '<View\n  className=\n  "p-4 rounded-lg"\n/>'
+    animated_block = 'Animated.timing(opacidade, {\n  toValue: 1,\n  useNativeDriver: true,\n}).start();'
+    for count, question, snippet in (
+        (1, native_example, native_block),
+        (2, animated_example, animated_block),
+        (3, repaired_example, native_block),
+    ):
+        request_id = str(uuid.uuid4())
+        events, answer = ask(student, question, request_id=request_id)
+        assert snippet in answer and answer.count("```") == 2, events
+        assert snippet not in events[2]["text"], events
+        assert any(event["type"] == "retry" for event in events) == (count == 3), events
+        if question == animated_example:
             assert "## Conexão" in events[2]["text"] and "O valor animado" in events[2]["text"]
+        persisted = snapshot(code)[1]
+        assert persisted["snippet_quota"]["count"] == count
+        assert persisted["history"][-1]["content"] == answer
+        assert student.answer(mensagem=question, request_id=request_id)["resposta"] == answer
+        assert snapshot(code)[1]["snippet_quota"]["count"] == count
 
-    active = student.answer(acao="retomar", codigo=code, mostrar_historico=False)
+    fresh_session = Client(origin)
+    active = fresh_session.answer(acao="retomar", codigo=code, mostrar_historico=False)
     assert "historico" not in active and active["anotacoes"] == "Lembrete sintético"
-    active = student.answer(acao="estado", mostrar_historico=False)
-    assert "historico" not in active
-    assert len(student.answer(acao="estado")["historico"]) == 6
+    assert "historico" not in fresh_session.answer(acao="estado", mostrar_historico=False)
+    assert len(fresh_session.answer(acao="estado")["historico"]) == 8
 
-    events = [event for _, event in student.events(mensagem="O valor Animated não chega à opacidade.")]
-    assert any(event["type"] == "retry" for event in events)
-    assert "new Animated.Value(0)" not in events[-1]["resposta"]
+    blocked, prose = ask(fresh_session, animated_example)
+    assert any(event["type"] == "retry" for event in blocked)
+    assert animated_block not in prose and "```" not in prose
+    path, persisted = snapshot(code)
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    assert persisted["snippet_quota"] == {"day": today.isoformat(), "count": 3}
+
+    another_student, another_code = sign_up()
+    _, answer = ask(another_student, native_example)
+    assert native_block in answer
+    assert snapshot(another_code)[1]["snippet_quota"] == {"day": today.isoformat(), "count": 1}
+    assert snapshot(code)[1]["snippet_quota"]["count"] == 3
+
+    # Date rollover is exercised in the isolated synthetic student file only.
+    persisted["snippet_quota"]["day"] = (today - timedelta(days=1)).isoformat()
+    path.write_text(json.dumps(persisted, ensure_ascii=False))
+    _, answer = ask(fresh_session, animated_example)
+    assert animated_block in answer
+    assert snapshot(code)[1]["snippet_quota"] == {"day": today.isoformat(), "count": 1}
+
+    _, guidance = ask(fresh_session, "Não tenho falhas no Animated. Quero começar um salto.")
+    assert "deslocamento vertical" in guidance and "falha" not in guidance
+    assert "```" not in guidance and snapshot(code)[1]["snippet_quota"]["count"] == 1
 
 
 def exercise_teaching_materials(directory, origin):
@@ -418,7 +470,7 @@ def main():
         directory.mkdir()
         stage_app(directory / "web", None)
         with app_server(directory, command, {}) as origin:
-            exercise_guided_chat(origin)
+            exercise_guided_chat(directory, origin)
 
         directory = Path(temp) / "referencias-professor"
         directory.mkdir()

@@ -38,7 +38,7 @@ const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const MAX_MESSAGE_LENGTH = 4000;
 const HISTORY_WINDOW = 12;
-const JOIA_SNIPPETS_PER_STUDENT_SESSION = 3;
+const JOIA_SNIPPETS_PER_STUDENT_DAY = 3;
 
 require_once __DIR__ . '/includes/api_metrics.php';
 require_once __DIR__ . '/includes/llm_context.php';
@@ -121,6 +121,40 @@ function updateMemory(string $id, callable $update): array
     } finally {
         fclose($lock);
     }
+}
+
+function joiaSnippetDay(): string
+{
+    return (new DateTimeImmutable('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d');
+}
+
+function joiaDailySnippetCount(array $memory, string $day): int
+{
+    $quota = $memory['snippet_quota'] ?? [];
+    return ($quota['day'] ?? null) === $day ? max(0, (int) ($quota['count'] ?? 0)) : 0;
+}
+
+function saveStudentTurn(string $id, string $message, string $answer, bool $hasSnippet): ?array
+{
+    // Claim quota under the same record lock used to write the dialogue. A
+    // separate browser can use the last slot while this one is generating.
+    $quotaReached = false;
+    $saved = updateMemory($id, static function (array $item) use ($message, $answer, $hasSnippet, &$quotaReached): array {
+        if ($hasSnippet) {
+            $day = joiaSnippetDay();
+            $count = joiaDailySnippetCount($item, $day);
+            if ($count >= JOIA_SNIPPETS_PER_STUDENT_DAY) {
+                $quotaReached = true;
+                return $item;
+            }
+            $item['snippet_quota'] = ['day' => $day, 'count' => $count + 1];
+        }
+        $now = gmdate('c');
+        $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];
+        $item['history'][] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
+        return $item;
+    });
+    return $quotaReached ? null : $saved;
 }
 
 function issueStudentCode(array &$memory): string
@@ -306,23 +340,29 @@ function consecutiveCodeRequests(string $message, array $history): int
     return $count;
 }
 
-function pedagogicalRetry(array $messages, int $insistence, ?string $snippetTopic, string $opening, ?callable $onDelta): string
+function pedagogicalRetry(
+    array $messages, int $insistence, ?string $snippetTopic, bool $snippetAllowed, string $opening, ?callable $onDelta
+): string
 {
-    $direction = $insistence > 3
+    $direction = $snippetTopic === null && $insistence > 3
         ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Depois de responder à dúvida, explique brevemente por que você orienta sem entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”.'
         : 'Oriente o aluno sem anunciar recusa ou usar uma resposta-padrão.';
     $start = $opening === ''
-        ? 'Reformule a resposta à última pergunta sem fornecer código. Comece pela orientação específica que o aluno pediu. '
+        ? 'Reformule a resposta à última pergunta. Comece pela orientação específica que o aluno pediu. '
         : 'Continue a explicação já exibida ao aluno na última mensagem do assistente. Preserve o sentido do que foi mostrado. '
-          . 'Escreva somente a continuação, em um novo parágrafo, sem repetir o texto anterior, sem saudar e sem fornecer código. ';
+          . 'Escreva somente a continuação, em um novo parágrafo, sem repetir o texto anterior nem saudar. ';
     $instruction = $start
         . 'Use a tentativa e os detalhes já informados na conversa. Diga o que observar ou mudar e em que parte do problema, '
         . 'explique por que isso funciona e dê uma verificação prática ou um exemplo em palavras quando ajudar. '
-        . 'Se o aluno já compreendeu um conceito, avance para a aplicação em vez de repetir a definição. '
+        . 'Trate a correção mais recente do aluno como decisiva. Se ele está começando ou disse que não há falha, '
+        . 'mostre por onde começar em vez de sugerir diagnóstico. Se já compreendeu um conceito, avance para a aplicação. '
         . 'Faça uma única pergunta específica somente se faltar informação que mude a orientação. '
         . 'Evite aberturas genéricas e promessas de mostrar código. ' . $direction;
     $instruction .= ' Quebre a explicação em parágrafos curtos. Use **negrito** para o ponto central e, se ajudar, '
         . 'uma dica marcada com 💡 ou uma lista curta de verificações.';
+    $instruction .= $snippetAllowed && $snippetTopic !== null
+        ? ' Ajuste o exemplo ao limite, sem trocar a dúvida por diagnóstico. ' . joiaSnippetInstruction($snippetTopic)
+        : ' Nesta reformulação, oriente somente em palavras, sem atribuições, JSX ou caixas de código.';
     if ($snippetTopic === 'nativewind') {
         $instruction .= ' Em NativeWind, cite a propriedade ou classe útil e diga em qual componente ela entra. '
             . 'Para uma dúvida de instalação ou integração, indique como distinguir uma classe que não chega ao componente de uma falha de configuração.';
@@ -353,9 +393,12 @@ function enforcePedagogicalCodeLimit(
     $insistence = consecutiveCodeRequests($message, $history);
     $opening = $stream?->published() ?? '';
     $stream?->beginRetry();
-    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $opening, $stream ? [$stream, 'append'] : null);
+    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $snippetAllowed, $opening, $stream ? [$stream, 'append'] : null);
     $retry = withoutRepeatedJoiaOpening($retry, $opening);
     if ($retry === '' && $opening !== '') return rtrim($opening);
+    if ($snippetAllowed && $snippetTopic !== null && joiaSnippetAnswerIsAllowed($opening . $retry, $snippetTopic)) {
+        return $opening . $retry;
+    }
     $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
     $combined = $opening . $prose;
     if ($prose !== '' && codeLineCount($combined) === 0 && ($snippetTopic === null || !joiaSnippetAnswerHasCode($combined))) {
@@ -364,18 +407,26 @@ function enforcePedagogicalCodeLimit(
     $published = $stream?->published() ?? '';
     $setup = $snippetTopic === 'nativewind'
         && preg_match('/\b(?:cham\w*|instal\w*|config\w*|integr\w*|nenhuma classe|sem efeito|nao funciona)\b/', normalize($message));
+    $studentContext = [$message];
+    foreach (array_slice($history, -4) as $turn) {
+        if (($turn['role'] ?? '') === 'user') $studentContext[] = (string) ($turn['content'] ?? '');
+    }
+    $jump = $snippetTopic === 'animated'
+        && preg_match('/\b(?:pul\w*|salto|translatey|deslocamento vertical)\b/', normalize(implode(' ', $studentContext)));
     $guidance = match (true) {
         $setup => "**Teste se o estilo chega ao componente.** Aplique uma classe conhecida, como `bg-red-500`, na propriedade `className` de uma `View` simples.\n\n"
             . "- **Se a cor mudar:** confira se o componente original recebe e repassa essa propriedade.\n"
             . "- **Se a cor não mudar:** verifique a instalação do NativeWind e se a configuração inclui a pasta desse arquivo.",
         $snippetTopic === 'nativewind' => "**Aplique a classe ao elemento que deve mudar.** Para organizar os filhos como grupo, ajuste o contêiner. Para mudar o visual de um filho, ajuste esse elemento.\n\n"
             . "💡 **Teste rápido:** altere só uma classe e confira se o efeito apareceu na região esperada.",
-        $snippetTopic === 'animated' => "**Separe o valor do efeito visual.** Confira se o valor animado muda e se a propriedade de estilo está ligada a ele em uma `Animated.View`.\n\n"
-            . "💡 **Teste rápido:** diferencie uma falha ao iniciar a animação de uma falha ao ligar o valor ao estilo que deveria mudar.",
+        $jump => "**Comece pelo deslocamento vertical.** Na posição de repouso, o deslocamento é zero. Um valor negativo faz o elemento subir, e voltar a zero faz ele aterrissar.\n\n"
+            . "💡 **Primeiro passo:** ligue o valor animado à transformação vertical da `Animated.View`. Depois escolha a altura do salto antes de pensar no tempo da animação.",
+        $snippetTopic === 'animated' => "**Escolha o que vai mudar na tela.** Para um efeito de aparecer, por exemplo, a opacidade pode ir de invisível a visível. Para um movimento, escolha a posição inicial e a final.\n\n"
+            . "💡 **Primeiro passo:** ligue um valor animado a uma única propriedade da `Animated.View` e observe esse efeito antes de combinar outros.",
         default => "**Isole onde o resultado muda.** Use um caso pequeno para reproduzir a dúvida.\n\n"
             . "🔎 **Compare** o que você esperava observar com o que aconteceu e identifique o primeiro ponto de diferença.",
     };
-    return $published . ($insistence > 3 ? "O Profe João fica bravo 🤣 se eu montar tudo por você.\n\n" : '') . $guidance;
+    return $published . ($snippetTopic === null && $insistence > 3 ? "O Profe João fica bravo 🤣 se eu montar tudo por você.\n\n" : '') . $guidance;
 }
 
 function conversation(string $id): array
@@ -753,8 +804,8 @@ try {
         $requestId = null;
     }
     $snippetTopic = joiaSnippetTopic($message, $history);
-    $snippetUsed = (int) ($_SESSION['student_snippets'][$state['student_id']] ?? 0);
-    $snippetAllowed = $snippetTopic !== null && $snippetUsed < JOIA_SNIPPETS_PER_STUDENT_SESSION
+    $snippetAllowed = $snippetTopic !== null
+        && joiaDailySnippetCount($memory, joiaSnippetDay()) < JOIA_SNIPPETS_PER_STUDENT_DAY
         && !joiaSnippetWantsFullSolution($message);
     $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
     $stream = $streaming ? new JoiaAnswerStream() : null;
@@ -832,14 +883,12 @@ try {
     $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null);
     $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed);
     $remaining = $stream?->remaining($answer);
-    $saved = updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
-        $now = gmdate('c');
-        $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];
-        $item['history'][] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
-        return $item;
-    });
-    if ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic)) {
-        $_SESSION['student_snippets'][$state['student_id']] = $snippetUsed + 1;
+    $hasSnippet = $snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic);
+    $saved = saveStudentTurn($state['student_id'], $message, $answer, $hasSnippet);
+    if ($saved === null) {
+        $answer = enforcePedagogicalCodeLimit($answer, $history, $message, $messages, $stream, $snippetTopic, false);
+        $remaining = $stream?->remaining($answer);
+        $saved = saveStudentTurn($state['student_id'], $message, $answer, false);
     }
     if ($requestId !== null) {
         $state['chat_requests'][$requestId]['index'] = count($saved['history']) - 1;

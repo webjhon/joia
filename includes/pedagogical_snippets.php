@@ -1,10 +1,15 @@
 <?php
 declare(strict_types=1);
 
+const JOIA_SNIPPET_MAX_LINES = 4;
+
 function joiaExplicitSnippetTopic(string $text): ?string
 {
-    $nativeWind = preg_match('/\b(?:nativewind|native wind)\b/', $text) === 1;
-    $animated = preg_match('/\banimated\b|\banimac\w*\s+(?:com|do|no|nativo do)\s+react native\b/', $text) === 1;
+    $reactNative = preg_match('/\breact native\b/', $text) === 1;
+    $nativeWind = preg_match('/\b(?:nativewind|native wind)\b/', $text) === 1
+        || ($reactNative && preg_match('/\b(?:tailwind|classname|cssinterop|remapprops)\b/', $text) === 1);
+    $animated = preg_match('/\banimated\b/', $text) === 1
+        || ($reactNative && preg_match('/\b(?:animac\w*|interpol\w*|driver nativo)\b/', $text) === 1);
     return $nativeWind === $animated ? null : ($nativeWind ? 'nativewind' : 'animated');
 }
 
@@ -29,14 +34,8 @@ function joiaSnippetTopic(string $message, array $history): ?string
         $role = $turn['role'] ?? '';
         if ($role !== 'user' && $role !== 'assistant') continue;
         $previous = normalize((string) ($turn['content'] ?? ''));
-        if ($topic = joiaExplicitSnippetTopic($previous)) {
-            $shared = 'isso|isto|ainda|entendi|exemplo|codigo|sintaxe|aplic\w*|coloc\w*|uso|usar|fica|faco|tent\w*|aqui|nesse caso|na pratica|mostr\w*';
-            $subject = $topic === 'nativewind'
-                ? 'class\w*|estil\w*|view|text|container|centraliz\w*|alinh\w*|flex\w*|borda|cor|espac\w*'
-                : 'animac\w*|interpol\w*|timing|spring|decay|opacidade|escala|transform\w*|duracao|atraso|moviment\w*|driver|valor';
-            return preg_match('/\b(?:' . $shared . '|' . $subject . ')\b/', $current) ? $topic : null;
-        }
         if ($role === 'user' && joiaSnippetChangesTopic($previous)) return null;
+        if ($topic = joiaExplicitSnippetTopic($previous)) return $topic;
     }
     return null;
 }
@@ -52,11 +51,13 @@ function joiaSnippetWantsFullSolution(string $message): bool
 
 function joiaSnippetInstruction(string $topic): string
 {
-    $shape = $topic === 'nativewind'
-        ? 'No NativeWind, mostre em uma linha um className curto com até três utilidades, sozinho ou aplicado a uma View ou Text autofechada com apenas essa propriedade.'
-        : 'No Animated nativo do React Native, mostre em até duas linhas apenas o ponto relevante. Pode ser a criação de Animated.Value (inclusive em useRef), sua ligação ao estilo de uma Animated.View, uma chamada isolada de timing, spring, decay, interpolate, setValue ou start. Duas linhas só para ligar um Animated.Value ao estilo de uma Animated.View. Use números simples, sem rotinas completas de animação.';
-    return 'Se um pequeno trecho ajudar a entender ou testar a dúvida atual, você pode incluir uma única caixa Markdown jsx ou tsx. Explique o efeito do trecho e deixe o próximo passo para o aluno. '
-        . $shape . ' Use somente um fragmento didático, sem imports, componentes completos, configurações inteiras, lógica de aplicativo ou solução pronta.';
+    $scope = $topic === 'nativewind'
+        ? 'Ilustre uma aplicação de className, um trecho pequeno de JSX ou a integração específica do NativeWind que a dúvida pede.'
+        : 'Ilustre o ponto de Animated do React Native, como preparar um valor, vinculá-lo ao estilo ou iniciar uma animação simples com timing e start. Mostre apenas a parte que o aluno precisa examinar.';
+    return 'Use uma caixa Markdown com até quatro linhas curtas quando isso ajudar. '
+        . 'Se o aluno pedir um exemplo para começar ou aplicar o conceito, mostre um fragmento concreto nesse limite, sem exigir tentativa anterior. '
+        . $scope . ' Escolha a forma que melhor explique o caso, sem um padrão fixo. '
+        . 'Explique o efeito e deixe o próximo passo para o aluno. Evite componentes completos, imports, arquivos de configuração e soluções prontas.';
 }
 
 function joiaSnippetAnswerHasCode(string $answer): bool
@@ -67,54 +68,36 @@ function joiaSnippetAnswerHasCode(string $answer): bool
         || codeLineCount($prose) > 0;
 }
 
-function joiaNativeWindSnippetIsAllowed(string $line): bool
-{
-    if (strlen($line) > 132) return false;
-    $utility = '[A-Za-z0-9!][A-Za-z0-9!_:.\/-]{0,29}';
-    $classes = $utility . '(?:\h+' . $utility . '){0,2}';
-    $attribute = "className\\h*=\\h*(?:\"" . $classes . "\"|'" . $classes . "')";
-    if (preg_match('~\A' . $attribute . '\z~D', $line)) return true;
-    return preg_match('~\A<(?:View|Text)\h+' . $attribute . '\h*/>\z~D', $line) === 1;
-}
-
-function joiaAnimatedLineKind(string $line): ?string
-{
-    if (strlen($line) > 140) return null;
-    $name = '[A-Za-z_$][A-Za-z0-9_$]{0,31}';
-    $number = '-?\d{1,5}(?:\.\d{1,5})?';
-    $declaration = '(?:(?:const|let)\h+' . $name . '\h*=\h*)?';
-    $value = 'new\h+Animated\.Value\(\h*(?:' . $number . '|' . $name . ')\h*\)';
-    if (preg_match('~^' . $declaration . '(?:' . $value . '|useRef\(\h*' . $value . '\h*\)\.current);?$~D', $line)) return 'value';
-
-    $styleValue = '(?:' . $name . '|' . $number . ')';
-    $property = '(?:opacity|width|height|left|top|right|bottom)\h*:\h*' . $styleValue;
-    $transform = 'transform\h*:\h*\[\h*\{\h*(?:translateX|translateY|scale|scaleX|scaleY|rotate)\h*:\h*' . $styleValue . '\h*}\h*\]';
-    if (preg_match('~^<Animated\.View\h+style\h*=\h*\{\h*\{\h*(?:' . $property . '|' . $transform . ')\h*}\h*}\h*/>$~D', $line)) return 'element';
-
-    $setting = '(?:toValue\h*:\h*' . $styleValue
-        . '|(?:duration|delay|friction|tension|bounciness|velocity|deceleration|stiffness|damping|mass)\h*:\h*' . $number
-        . '|(?:useNativeDriver|isInteraction|overshootClamping)\h*:\h*(?:true|false))';
-    if (preg_match('~^' . $declaration . 'Animated\.(?:timing|spring|decay)\(\h*' . $name . '\h*,\h*\{\h*' . $setting . '(?:\h*,\h*' . $setting . '){0,4}\h*,?\h*}\h*\);?$~D', $line)) return 'operation';
-
-    $unit = $number . '(?:deg|rad|%)';
-    $rangeValue = '(?:' . $number . '|"' . $unit . '"|' . "'" . $unit . "')";
-    $range = '\[\h*' . $rangeValue . '(?:\h*,\h*' . $rangeValue . '){1,3}\h*\]';
-    if (preg_match('~^' . $declaration . $name . '\.interpolate\(\h*\{\h*inputRange\h*:\h*' . $range . '\h*,\h*outputRange\h*:\h*' . $range . '\h*,?\h*}\h*\);?$~D', $line)) return 'operation';
-    if (preg_match('~^' . $name . '\.(?:setValue\(\h*' . $styleValue . '\h*\)|(?:start|stop|reset|stopAnimation|resetAnimation)\(\h*\));?$~D', $line)) return 'operation';
-    return null;
-}
-
 function joiaSnippetAnswerIsAllowed(string $answer, string $topic): bool
 {
-    if (!preg_match('/^\h*```(?:jsx|tsx|javascript|typescript|js|ts)?\h*\R(.*?)^\h*```\h*(?=\r?$)/ims', $answer, $block, PREG_OFFSET_CAPTURE)) return false;
+    $fence = '/^\h*```(?:jsx|tsx|css|javascript|typescript|js|ts)?\h*\r?\n(.*?)^\h*```\h*(?=\r?$)/ims';
+    if (preg_match($fence, $answer, $block, PREG_OFFSET_CAPTURE) !== 1) return false;
     $remaining = substr_replace($answer, '', $block[0][1], strlen($block[0][0]));
     if (joiaSnippetAnswerHasCode($remaining)) return false;
 
-    $lines = array_map('trim', preg_split('/\R/u', trim($block[1][0])) ?: []);
-    if ($topic === 'nativewind') return count($lines) === 1 && joiaNativeWindSnippetIsAllowed($lines[0]);
-    if ($topic !== 'animated' || !$lines || count($lines) > 2) return false;
+    $lines = array_map('trim', preg_split('/\R/u', $block[1][0]) ?: []);
+    $lines = array_values(array_filter($lines, static fn (string $line): bool => $line !== ''));
+    if (!$lines || count($lines) > JOIA_SNIPPET_MAX_LINES) return false;
+    foreach ($lines as $line) {
+        // Keep short fragments from carrying extra statements on one line.
+        if (strlen($line) > 160 || substr_count($line, ';') > 1) return false;
+    }
 
-    $kinds = array_map('joiaAnimatedLineKind', $lines);
-    if (in_array(null, $kinds, true)) return false;
-    return count($kinds) === 1 || $kinds === ['value', 'element'];
+    $code = implode("\n", $lines);
+    if (joiaSnippetLooksComplete($code)) return false;
+    return match ($topic) {
+        'nativewind' => preg_match('/\bclassName\s*\??\s*[:=]|\b(?:cssInterop|remapProps|styled)\s*\(|@apply\s+/', $code) === 1,
+        'animated' => preg_match('/\bAnimated\s*\.\s*(?:Value(?:XY)?|View|Text|Image|ScrollView|timing|spring|decay|add|multiply|subtract|divide|modulo|diffClamp|event)\b|\.\s*(?:interpolate|setValue|start|stopAnimation|resetAnimation)\s*\(|\b(?:opacity|translate[XY]|scale[XY]?|rotate[XYZ]?)\s*:\s*[A-Za-z_$]/', $code) === 1,
+        default => false,
+    };
+}
+
+function joiaSnippetLooksComplete(string $code): bool
+{
+    // The length limit is complemented by shape checks. Small JSX and
+    // direct method calls remain available without accepting full scaffolds.
+    $boilerplate = '/(?:\b(?:import|export|require|function|class|extends|useEffect|useLayoutEffect|useState)\b|=>|\b(?:module\.exports|defineConfig|registerComponent|createRoot|withNativeWind)\b|^\h*(?:npm|npx|yarn|pnpm|bun|expo)\h|@(?:import|tailwind)\b)/m';
+    if (preg_match($boilerplate, $code)) return true;
+    if (preg_match('/\bon[A-Z][A-Za-z]*\s*=|<[a-z][\w-]*[\s\/>]/', $code)) return true;
+    return preg_match_all('/<[A-Z][\w.]*(?=[\s\/>])/', $code) > 3;
 }

@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.16**
+> **Versão atual: 1.17**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -161,11 +161,12 @@ a gerar texto.
 
 ## Pistas curtas de código
 
-Quando um fragmento isolado ajuda a entender a dúvida, NativeWind e a API
-Animated do React Native podem receber até uma caixa com uma ou duas linhas,
-conforme o assunto. O servidor conta até três dessas pistas por aluno na
-sessão PHP. O histórico completo e os limites pedagógicos continuam aplicados
-quando o aluno troca de conversa.
+Quando ajuda a responder à dúvida, a JOIA pode mostrar uma caixa com até quatro
+linhas de NativeWind ou Animated do React Native, inclusive para quem está
+começando. São até três caixas somadas por aluno por dia, no horário de São
+Paulo. O contador fica na memória privada do aluno e vale em outros navegadores
+ou dispositivos quando ele usa seu código. Respostas que ficam em prosa e
+reenvios do mesmo pedido não consomem a cota.
 
 ## Consumo da API
 

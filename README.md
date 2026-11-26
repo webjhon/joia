@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.10**
+> **Versão atual: 1.11**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -139,3 +139,16 @@ Registros antigos sem uma sessão associada precisam de um processo de
 recuperação que confirme a identidade do aluno. O caderno da versão anterior
 pode ser baixado na tela de entrada do mesmo navegador e copiado para o caderno
 do aluno após o acesso.
+
+## Respostas progressivas
+
+No chat do aluno, o PHP recebe o stream da OpenAI e repassa os trechos de
+texto em eventos NDJSON antes de a geração terminar. Trechos com sinais de
+código aguardam a validação pedagógica. A resposta final, formatada e validada,
+é a que fica no histórico. Cadastro, relatórios, anotações e clientes que pedem
+JSON continuam usando respostas completas.
+
+Para confirmar o streaming em uma hospedagem, verifique se o navegador recebe
+eventos progressivamente na requisição a `teste_openai.php`. Se todos os eventos
+chegarem juntos, verifique o buffering de saída do PHP e da camada de proxy ou
+compressão da hospedagem. A busca de contexto ainda ocorre antes da geração.

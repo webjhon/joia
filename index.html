@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.11. -->
-<meta name="application-version" content="1.11" />
+<!-- Versão 1.12. -->
+<meta name="application-version" content="1.12" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -521,7 +521,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.11</small>
+      <small class="app-version" title="Versão da JOIA">v1.12</small>
     </header>
 
     <section id="output" class="output">
@@ -616,7 +616,7 @@ const codeInput = document.getElementById("studentCode");
 
 const joiaStreamType = "application/x-ndjson";
 
-async function readJoiaStream(body, onDelta){
+async function readJoiaStream(body, onUpdate){
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let pending = "";
@@ -632,7 +632,7 @@ async function readJoiaStream(body, onDelta){
         pending = pending.slice(newline + 1);
         if(!line.trim()) continue;
         const event = JSON.parse(line);
-        if(event.type === "delta") onDelta(event.text);
+        if(event.type === "delta" || event.type === "retry") onUpdate(event);
         if(event.type === "error") throw new Error(event.erro);
         if(event.type === "done"){
           completed = true;
@@ -646,17 +646,17 @@ async function readJoiaStream(body, onDelta){
   }
 }
 
-async function requestJoia(payload, onDelta){
+async function requestJoia(payload, onUpdate){
   const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Accept": onDelta && typeof ReadableStream !== "undefined" ? joiaStreamType : "application/json"
+      "Accept": onUpdate && typeof ReadableStream !== "undefined" ? joiaStreamType : "application/json"
     },
     body: JSON.stringify({...payload, conversation_id: conversationId})
   });
-  if(res.ok && res.headers.get("Content-Type")?.startsWith(joiaStreamType) && res.body && onDelta){
-    return readJoiaStream(res.body, onDelta);
+  if(res.ok && res.headers.get("Content-Type")?.startsWith(joiaStreamType) && res.body && onUpdate){
+    return readJoiaStream(res.body, onUpdate);
   }
   const data = await res.json().catch(() => null);
   if(!data) throw new Error(`Resposta inválida do servidor (HTTP ${res.status}).`);
@@ -895,13 +895,19 @@ async function sendMsg(){
   let preview = null;
   let previewText = "";
   try {
-    const data = await requestJoia({mensagem: msg}, delta => {
+    const data = await requestJoia({mensagem: msg}, event => {
+      if(event.type === "retry"){
+        previewText = "";
+        const pending = preview?.querySelector(".joia-markdown") ?? document.getElementById("thinking");
+        if(pending) pending.textContent = "Ajustando a explicação…";
+        return;
+      }
       if(!preview){
         document.getElementById("thinking")?.remove();
         renderMessage(msg, "user");
         preview = renderMessage("", "joia");
       }
-      previewText += delta;
+      previewText += event.text;
       const fragment = renderJoiaMarkdown(previewText, {addTipIcon: false});
       fragment.classList.add("joia-stream-preview");
       preview.querySelector(".joia-markdown").replaceWith(fragment);

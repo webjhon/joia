@@ -1,0 +1,12 @@
+{
+  "titulo": "Orientação pedagógica concreta e resposta gradual no chat",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["pedagogia", "dúvida", "resposta genérica", "sem código", "reformulação", "streaming"],
+  "pedidos": ["Priorizar respostas que ajudem o aluno a entender e avançar, mesmo sem código, e efetivar a entrega gradual pelo streaming já implementado."],
+  "decisoes": [
+    "Responder primeiro ao ponto da dúvida, ligar a explicação ao que o aluno já sabe e oferecer uma pista verificável em palavras quando for útil.",
+    "Manter a orientação concreta quando a resposta precisar ser reformulada sem código.",
+    "Aplicar a entrega gradual também à reformulação pedagógica."
+  ]
+}

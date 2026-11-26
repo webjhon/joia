@@ -66,7 +66,7 @@ function joiaProsePreview(): Closure
         while (preg_match('/^.*?(?:\r?\n|[,.!?](?=[ \t]))/us', $pending, $segment)) {
             $text = $segment[0];
             $prose = preg_replace('/(?<!`)`[\p{L}\p{N}_:-]{1,48}`(?!`)/u', 'termo', $text);
-            if ($prose === null || preg_match('/[`~<>{}=;\\\\]|(?:\w+|\])\s*\(/u', $prose) || codeLineCount($prose) > 0) {
+            if ($prose === null || preg_match('/[`~<>{}=;\\\\]|\w+\(|(?:[\w$]+\.\w+|\])\s*\(/u', $prose) || codeLineCount($prose) > 0) {
                 $hold = true;
                 break;
             }

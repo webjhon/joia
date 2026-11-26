@@ -1,0 +1,13 @@
+{
+  "titulo": "Código pessoal de acesso e caderno por aluno",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["aluno", "cadastro", "código", "token", "histórico", "anotações", "caderno"],
+  "pedidos": [
+    "Resumo: oferecer Novo usuário e Já tenho um código na entrada. Emitir um código após o primeiro cadastro e usá-lo para recuperar o histórico e o caderno em qualquer dispositivo. Atualizar a versão do frontend."
+  ],
+  "decisoes": [
+    "O acesso por código reutiliza o mesmo identificador interno do histórico e da memória vetorial.",
+    "Guardar o verificador do código e as anotações em armazenamento privado no servidor. Manter a área docente como entrada separada."
+  ]
+}

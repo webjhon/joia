@@ -58,20 +58,29 @@ function normalize(string $value): string
 
 function memoryDirectory(): string
 {
-    $directory = __DIR__ . '/memoria';
-    if (!is_dir($directory)) mkdir($directory, 0750, true);
-    return $directory;
+    $root = realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: __DIR__;
+    $directory = getenv('JOIA_MEMORY_DIR') ?: dirname($root) . '/joia-memoria';
+    if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
+        throw new RuntimeException('Diretório privado de memória indisponível.');
+    }
+    $path = realpath($directory);
+    if ($path === false || $path === $root || str_starts_with($path, rtrim($root, '/') . '/')
+        || $path === __DIR__ || str_starts_with($path, __DIR__ . '/')) {
+        throw new RuntimeException('Configure um diretório de memória fora da raiz pública.');
+    }
+    return $path;
 }
 
 function memoryPath(string $id): string
 {
-    if (!preg_match('/^[a-f0-9]{32}$/', $id)) throw new InvalidArgumentException('Identificador inválido.');
+    if (!preg_match('/^[a-f0-9]{32}$/D', $id)) throw new InvalidArgumentException('Identificador inválido.');
     return memoryDirectory() . '/aluno_' . $id . '.json';
 }
 
 function loadMemory(string $id): array
 {
     $path = memoryPath($id);
+    if (!is_file($path)) $path = __DIR__ . '/memoria/aluno_' . $id . '.json';
     $memory = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
     return is_array($memory) ? $memory : [];
 }
@@ -79,19 +88,61 @@ function loadMemory(string $id): array
 function saveMemory(array $memory): void
 {
     $memory['updated_at'] = gmdate('c');
-    $json = json_encode($memory, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($json === false || file_put_contents(memoryPath((string) $memory['id']), $json, LOCK_EX) === false) {
-        throw new RuntimeException('Não foi possível salvar a memória do aluno.');
+    $path = memoryPath($memory['id']);
+    $json = json_encode($memory, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    $temp = tempnam(dirname($path), 'joia-');
+    if ($temp === false) throw new RuntimeException('Não foi possível preparar a memória do aluno.');
+    try {
+        if (file_put_contents($temp, $json) !== strlen($json) || !rename($temp, $path)) {
+            throw new RuntimeException('Não foi possível salvar a memória do aluno.');
+        }
+    } finally {
+        if (is_file($temp)) unlink($temp);
     }
+}
+
+function updateMemory(string $id, callable $update): array
+{
+    $lock = fopen(memoryPath($id) . '.lock', 'c');
+    if ($lock === false) throw new RuntimeException('Memória do aluno indisponível.');
+    try {
+        if (!flock($lock, LOCK_EX)) throw new RuntimeException('Memória do aluno indisponível.');
+        $memory = loadMemory($id);
+        if (!$memory) throw new RuntimeException('Cadastro do aluno não encontrado.');
+        $updated = $update($memory);
+        if ($updated !== $memory) saveMemory($updated);
+        return $updated;
+    } finally {
+        fclose($lock);
+    }
+}
+
+function issueStudentCode(array &$memory): string
+{
+    $secret = bin2hex(random_bytes(16));
+    $memory['access_hash'] = hash('sha256', $secret);
+    return $memory['id'] . '-' . $secret;
+}
+
+function studentAccess(array $memory): array
+{
+    return [
+        'etapa' => 'conversation',
+        'historico' => $memory['history'] ?? [],
+        'anotacoes' => $memory['notes'] ?? '',
+        'revisao' => $memory['notes_revision'] ?? 0,
+    ];
 }
 
 function allStudents(): array
 {
     $students = [];
-    foreach (glob(memoryDirectory() . '/aluno_*.json') ?: [] as $path) {
+    $paths = array_merge(glob(__DIR__ . '/memoria/aluno_*.json') ?: [], glob(memoryDirectory() . '/aluno_*.json') ?: []);
+    foreach ($paths as $path) {
         $item = json_decode((string) file_get_contents($path), true);
-        if (is_array($item) && isset($item['id'], $item['profile']['full_name'])) $students[] = $item;
+        if (is_array($item) && isset($item['id'], $item['profile']['full_name'])) $students[$item['id']] = $item;
     }
+    $students = array_values($students);
     usort($students, static function (array $a, array $b): int {
         return strcasecmp($a['profile']['full_name'], $b['profile']['full_name']);
     });
@@ -424,12 +475,79 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') respond(['erro' => 'Método não perm
 $input = json_decode((string) file_get_contents('php://input'), true) ?: [];
 $message = trim((string) ($input['mensagem'] ?? '')); $conversationId = preg_replace('/[^a-zA-Z0-9-]/', '', (string) ($input['conversation_id'] ?? ''));
 if ($conversationId === '' || strlen($conversationId) > 80) respond(['erro' => 'Conversa inválida.'], 422);
-if (($input['acao'] ?? '') === 'reset') { unset($_SESSION['conversations'][$conversationId]); respond(['resposta' => 'Nova conversa iniciada.', 'etapa' => 'reset']); }
-$messageLength = function_exists('mb_strlen') ? mb_strlen($message, 'UTF-8') : strlen($message);
-if ($message === '' || $messageLength > MAX_MESSAGE_LENGTH) respond(['erro' => 'Digite uma mensagem válida para continuar.'], 422);
-$state = conversation($conversationId);
+$action = $input['acao'] ?? '';
+if ($action === 'reset') {
+    unset($_SESSION['conversations'][$conversationId], $_SESSION['reports']);
+    respond(['resposta' => 'Nova conversa iniciada.', 'etapa' => 'reset']);
+}
+$state = $_SESSION['conversations'][$conversationId] ?? null;
 
 try {
+    if ($action === 'novo' || $action === 'docente') {
+        if ($state === null) {
+            $state = conversation($conversationId);
+            $state['student_onboarding'] = $action === 'novo';
+            storeConversation($conversationId, $state);
+        }
+        respond(['etapa' => $state['stage']]);
+    }
+    if ($action === 'retomar') {
+        $code = is_string($input['codigo'] ?? null) ? strtolower(trim($input['codigo'])) : '';
+        if (!preg_match('/^([a-f0-9]{32})-([a-f0-9]{32})$/D', $code, $parts)) {
+            respond(['erro' => 'Código inválido. Confira o código que você guardou.'], 401);
+        }
+        $memory = loadMemory($parts[1]);
+        if (!isset($memory['access_hash']) || !hash_equals($memory['access_hash'], hash('sha256', $parts[2]))) {
+            respond(['erro' => 'Código inválido. Confira o código que você guardou.'], 401);
+        }
+        unset($_SESSION['reports']);
+        session_regenerate_id(true);
+        storeConversation($conversationId, ['stage' => 'conversation', 'student_id' => $memory['id'], 'admin' => null]);
+        respond(studentAccess($memory));
+    }
+    if ($action === 'estado' || $action === 'salvar_anotacoes') {
+        if (!isset($state['student_id'])) {
+            if ($action === 'estado') respond(['etapa' => $state['stage'] ?? 'entrada', 'cadastro' => $state['student_onboarding'] ?? ($state !== null)]);
+            respond(['erro' => 'Entre com seu código para salvar anotações.'], 401);
+        }
+        $studentId = $state['student_id'];
+        if ($action === 'salvar_anotacoes') {
+            $notes = $input['anotacoes'] ?? null;
+            $revision = $input['revisao'] ?? null;
+            if (!is_string($notes) || strlen($notes) > 100000 || !is_int($revision)) {
+                respond(['erro' => 'Anotações inválidas ou acima do limite de 100 kB.'], 422);
+            }
+            $memory = updateMemory($studentId, static function (array $item) use ($notes, $revision): array {
+                if (($item['notes_revision'] ?? 0) !== $revision && ($item['notes'] ?? '') !== $notes) return $item;
+                $item['notes'] = $notes;
+                $item['notes_revision'] = ($item['notes_revision'] ?? 0) + 1;
+                return $item;
+            });
+            if (($memory['notes'] ?? '') !== $notes) {
+                respond(['erro' => 'O caderno mudou em outro dispositivo. Copie seu texto antes de recarregar.'], 409);
+            }
+            respond(['revisao' => $memory['notes_revision']]);
+        }
+        $memory = loadMemory($studentId);
+        if (!$memory) respond(['erro' => 'Cadastro do aluno não encontrado.'], 404);
+        if (!isset($memory['access_hash'])) {
+            $memory = updateMemory($studentId, static function (array $item) use (&$state): array {
+                if (!isset($item['access_hash'])) $state['issued_code'] = issueStudentCode($item);
+                return $item;
+            });
+            storeConversation($conversationId, $state);
+        }
+        $access = studentAccess($memory);
+        if (isset($state['issued_code'])) $access['codigo'] = $state['issued_code'];
+        respond($access);
+    }
+
+    $messageLength = function_exists('mb_strlen') ? mb_strlen($message, 'UTF-8') : strlen($message);
+    if ($message === '' || $messageLength > MAX_MESSAGE_LENGTH) respond(['erro' => 'Digite uma mensagem válida para continuar.'], 422);
+    if (preg_match('/^[a-f0-9]{32}-[a-f0-9]{32}$/iD', $message)) {
+        respond(['erro' => 'Use o código apenas na opção Já tenho um código.'], 422);
+    }
+    if ($state === null) respond(['erro' => 'Escolha como deseja entrar.'], 401);
     if (normalize($message) === 'iprogram ger') { $state['admin'] = 'token'; storeConversation($conversationId, $state); respond(['resposta' => '🔐 Área docente protegida. Informe o token de acesso para consultar os relatórios. O token não será armazenado no histórico.', 'etapa' => 'admin_token']); }
     if ($state['admin'] === 'token') {
         if (!hash_equals(ADMIN_TOKEN_HASH, hash('sha256', $message))) respond(['resposta' => 'Token inválido. A área docente continua bloqueada; confira o token e tente novamente.', 'etapa' => 'admin_token'], 403);
@@ -446,17 +564,23 @@ try {
     }
 
     if ($state['stage'] !== 'conversation') {
+        if (($state['student_onboarding'] ?? true) === false) respond(['erro' => 'Escolha Novo usuário para iniciar o cadastro.'], 401);
         $result = onboardingReply($state['stage'], $message, $state['draft']);
         if ($result['value'] !== '') {
             if ($state['stage'] === 'welcome') { $state['draft']['full_name'] = $result['value']; $state['draft']['preferred_name'] = explode(' ', trim($result['value']))[0]; $state['stage'] = 'name'; }
             elseif ($state['stage'] === 'name') { $state['draft']['class'] = $result['value']; $state['stage'] = 'class'; }
             else {
                 $state['draft']['institution'] = $result['value']; $id = bin2hex(random_bytes(16));
-                $memory = ['schema_version' => 2, 'id' => $id, 'profile' => $state['draft'], 'created_at' => gmdate('c'), 'history' => []]; saveMemory($memory);
+                $memory = ['schema_version' => 2, 'id' => $id, 'profile' => $state['draft'], 'created_at' => gmdate('c'), 'history' => []];
+                $state['issued_code'] = issueStudentCode($memory);
+                saveMemory($memory);
                 $state['student_id'] = $id; $state['stage'] = 'conversation';
             }
         }
-        storeConversation($conversationId, $state); respond(['resposta' => $result['reply'], 'etapa' => $state['stage']]);
+        storeConversation($conversationId, $state);
+        $payload = ['resposta' => $result['reply'], 'etapa' => $state['stage']];
+        if (isset($state['issued_code'])) $payload += studentAccess($memory) + ['codigo' => $state['issued_code']];
+        respond($payload);
     }
 
     $memory = loadMemory($state['student_id']); if (!$memory) throw new RuntimeException('Cadastro do aluno não encontrado. Inicie uma nova conversa.');
@@ -489,6 +613,11 @@ try {
     foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
     $messages[] = ['role' => 'user', 'content' => $message];
     $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history, $message, $messages);
-    $now = gmdate('c'); $history[] = ['role' => 'user', 'content' => $message, 'timestamp' => $now]; $history[] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
-    $memory['history'] = $history; saveMemory($memory); respond(['resposta' => $answer, 'etapa' => 'conversation']);
+    updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
+        $now = gmdate('c');
+        $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];
+        $item['history'][] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
+        return $item;
+    });
+    respond(['resposta' => $answer, 'etapa' => 'conversation']);
 } catch (Throwable $error) { error_log('JOIA: ' . $error->getMessage()); respond(['erro' => $error->getMessage()], 502); }

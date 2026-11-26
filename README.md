@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.13**
+> **Versão atual: 1.14**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -155,3 +155,7 @@ Para confirmar o streaming em uma hospedagem, verifique se o navegador recebe
 eventos progressivamente na requisição a `teste_openai.php`. Se todos os eventos
 chegarem juntos, verifique o buffering de saída do PHP e da camada de proxy ou
 compressão da hospedagem. A busca de contexto ainda ocorre antes da geração.
+
+## Consumo da API
+
+[A auditoria técnica e o guia de operação](documentacao/otimizacao-api.md) descrevem as métricas privadas, as opções de configuração e a comparação local.

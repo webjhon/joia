@@ -8,34 +8,106 @@ const JOIA_RETRIEVED_TURNS = 2;
 const JOIA_BACKFILL_TURNS = 6;
 const JOIA_MIN_SIMILARITY = 0.45;
 
+function joiaAdaptiveRagEnabled(): bool
+{
+    return getenv('JOIA_ADAPTIVE_RAG') !== '0';
+}
+
+function joiaIsPureGreeting(string $text): bool
+{
+    return preg_match('/^(?:(?:oi|ola|bom dia|boa tarde|boa noite|e ai|opa)(?: tudo bem)?|tudo bem|como vai)$/D', $text) === 1;
+}
+
+function joiaShouldRetrieveHistory(string $message, array $history): bool
+{
+    if (!joiaAdaptiveRagEnabled()) return true;
+    $normalized = normalize($message);
+    if (joiaIsPureGreeting($normalized)) return false;
+
+    $question = '/^(?:o que e|o que significa|qual e a definicao de|qual a definicao de) (?:a |o |uma |um )?'
+        . '(api(?: rest)?|http|https|json|html|css|javascript|typescript|python|java|react(?: native)?|node js)$/D';
+    if (!preg_match($question, $normalized, $match)) return true;
+
+    // A definition in the context of an earlier lesson can be a follow-up.
+    $topic = explode(' ', $match[1], 2)[0];
+    $topicPattern = '/\b' . preg_quote($topic, '/') . '\b/';
+    foreach (array_slice($history, -JOIA_RECENT_MESSAGES) as $item) {
+        $previous = normalize((string) ($item['content'] ?? ''));
+        if (preg_match($topicPattern, $previous) || preg_match('/\b(?:de novo|novamente|ainda|anterior|exercicio|projeto|erro|dificuldade|'
+            . 'dificil|tentei|tentando|nao entendi|nao (?:consigo|consegui)|continue|continuar|continuando|'
+            . 'retomar|ultima (?:aula|vez)|travado|travada)\b/', $previous)) {
+            return true;
+        }
+    }
+    foreach ($history as $item) {
+        if (($item['role'] ?? null) === 'user' && preg_match($topicPattern, normalize((string) ($item['content'] ?? '')))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function joiaEmbeddings(array $texts): array
 {
-    $request = curl_init('https://api.openai.com/v1/embeddings');
-    curl_setopt_array($request, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT_MS => 600,
-        CURLOPT_TIMEOUT_MS => 1800,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . openAIApiKey()],
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
-            'model' => JOIA_EMBEDDING_MODEL,
-            'dimensions' => JOIA_EMBEDDING_DIMENSIONS,
-            'input' => array_values($texts),
-        ], JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE),
-    ]);
-    $raw = curl_exec($request);
-    if ($raw === false || curl_getinfo($request, CURLINFO_HTTP_CODE) !== 200) {
-        throw new RuntimeException('Embeddings indisponíveis.');
-    }
+    $started = hrtime(true);
+    $status = 'error';
+    $attempted = false;
+    $errorCode = null;
+    $usage = [];
+    $estimate = array_sum(array_map('strlen', $texts));
+    try {
+        if (joiaInputBudgetExceeded('embedding', $estimate)) {
+            $errorCode = 'budget';
+            throw new RuntimeException('O lote vetorial excede o orçamento configurado.');
+        }
+        $request = curl_init('https://api.openai.com/v1/embeddings');
+        curl_setopt_array($request, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT_MS => 600,
+            CURLOPT_TIMEOUT_MS => 1800,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . openAIApiKey()],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode([
+                'model' => JOIA_EMBEDDING_MODEL,
+                'dimensions' => JOIA_EMBEDDING_DIMENSIONS,
+                'input' => array_values($texts),
+            ], JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE),
+        ]);
+        $attempted = true;
+        $raw = curl_exec($request);
+        if ($raw === false || curl_getinfo($request, CURLINFO_HTTP_CODE) !== 200) {
+            throw new RuntimeException('Embeddings indisponíveis.');
+        }
 
-    $vectors = [];
-    foreach (json_decode($raw, true, 512, JSON_THROW_ON_ERROR)['data'] ?? [] as $item) {
-        $vector = $item['embedding'] ?? [];
-        if (count($vector) !== JOIA_EMBEDDING_DIMENSIONS) throw new RuntimeException('Dimensão inválida.');
-        $vectors[$item['index']] = pack('g*', ...$vector);
+        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        $usage = is_array($data['usage'] ?? null) ? $data['usage'] : [];
+        $size = count($texts);
+        $vectors = [];
+        foreach ($data['data'] ?? [] as $item) {
+            $index = $item['index'] ?? null;
+            $vector = $item['embedding'] ?? null;
+            if (!is_int($index) || $index < 0 || $index >= $size || isset($vectors[$index])) {
+                throw new RuntimeException('Índice de embedding inválido.');
+            }
+            if (!is_array($vector) || count($vector) !== JOIA_EMBEDDING_DIMENSIONS) {
+                throw new RuntimeException('Dimensão inválida.');
+            }
+            $vectors[$index] = pack('g*', ...$vector);
+        }
+        if (count($vectors) !== $size) throw new RuntimeException('Lote incompleto.');
+        $status = 'ok';
+        return $vectors;
+    } finally {
+        joiaMetric('embedding', [
+            'duration_ms' => (hrtime(true) - $started) / 1e6,
+            'status' => $attempted ? $status : 'skipped',
+            'api_requests' => (int) $attempted,
+            'estimated_input_tokens' => $estimate,
+            'items' => count($texts),
+            'error_code' => $errorCode ?? ($status === 'error' ? 'response' : null),
+            'model' => JOIA_EMBEDDING_MODEL,
+        ] + joiaUsage($usage));
     }
-    if (count($vectors) !== count($texts)) throw new RuntimeException('Lote incompleto.');
-    return $vectors;
 }
 
 function joiaVectorDatabase(string $directory): PDO
@@ -81,19 +153,21 @@ function joiaHistoricalContext(string $studentId, array $history, string $messag
 {
     $turns = [];
     $recentStart = count($history) - JOIA_RECENT_MESSAGES;
+    $adaptive = joiaAdaptiveRagEnabled();
     for ($index = 0; $index + 1 < $recentStart; $index++) {
         $question = $history[$index];
         $answer = $history[$index + 1];
         if (($question['role'] ?? null) !== 'user' || ($answer['role'] ?? null) !== 'assistant') continue;
         $text = trim((string) ($question['content'] ?? ''));
-        if ($text === '') continue;
+        if ($text === '' || ($adaptive && strlen($text) <= 64 && joiaIsPureGreeting(normalize($text)))) continue;
         $turns[hash('sha256', $text)] = ['index' => $index, 'question' => $text, 'answer' => (string) ($answer['content'] ?? '')];
     }
     if (!$turns) return [];
 
     $model = JOIA_EMBEDDING_MODEL . ':' . JOIA_EMBEDDING_DIMENSIONS;
-    $select = $db->prepare('SELECT digest, vector FROM student_vectors WHERE student_id = ? AND model = ?');
-    $select->execute([$studentId, $model]);
+    $select = $db->prepare("SELECT digest, vector FROM student_vectors
+        WHERE student_id = ? AND model = ? AND typeof(vector) = 'blob' AND length(vector) = CAST(? AS INTEGER)");
+    $select->execute([$studentId, $model, JOIA_EMBEDDING_DIMENSIONS * 4]);
     $vectors = $select->fetchAll(PDO::FETCH_KEY_PAIR);
     $select->closeCursor();
 
@@ -106,7 +180,11 @@ function joiaHistoricalContext(string $studentId, array $history, string $messag
     $pending = array_diff_key($pending, $vectors);
     if ($pending) {
         $batch = $embed(array_values($pending));
-        $insert = $db->prepare('INSERT OR IGNORE INTO student_vectors VALUES (?, ?, ?, ?)');
+        $insert = $db->prepare("INSERT OR REPLACE INTO student_vectors
+            SELECT :student, :model, :digest, :vector
+            WHERE NOT EXISTS (SELECT 1 FROM student_vectors
+                WHERE student_id = :student AND model = :model AND digest = :digest
+                AND typeof(vector) = 'blob' AND length(vector) = length(:vector))");
         $db->beginTransaction();
         try {
             foreach (array_keys($pending) as $index => $digest) {
@@ -114,10 +192,10 @@ function joiaHistoricalContext(string $studentId, array $history, string $messag
                 if (strlen($encoded) !== JOIA_EMBEDDING_DIMENSIONS * 4) {
                     throw new RuntimeException('Vetor inválido.');
                 }
-                $insert->bindValue(1, $studentId);
-                $insert->bindValue(2, $model);
-                $insert->bindValue(3, $digest);
-                $insert->bindValue(4, $encoded, PDO::PARAM_LOB);
+                $insert->bindValue(':student', $studentId);
+                $insert->bindValue(':model', $model);
+                $insert->bindValue(':digest', $digest);
+                $insert->bindValue(':vector', $encoded, PDO::PARAM_LOB);
                 $insert->execute();
                 $vectors[$digest] = $encoded;
             }

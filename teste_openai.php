@@ -292,19 +292,26 @@ function consecutiveCodeRequests(string $message, array $history): int
     return $count;
 }
 
-function pedagogicalRetry(array $messages, string $message, int $insistence, bool $nativeWind): string
+function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, ?callable $onDelta): string
 {
     $direction = $insistence > 3
-        ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Explique agora, de forma dinâmica e ligada ao assunto, por que você guia em vez de entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”. Depois faça uma provocação útil.'
-        : 'Não anuncie recusa, não diga que não pode ou não quer fornecer código e não repita uma resposta-padrão. Responda diretamente ao conteúdo específico desta mensagem com uma explicação conceitual curta e uma nova pergunta provocativa que ajude o aluno a decidir o próximo passo.';
-    $instruction = 'A resposta anterior foi barrada por conter código demais. ' . $direction . ' Não inclua nenhuma linha de código nesta nova resposta. Mensagem atual: ' . json_encode($message, JSON_UNESCAPED_UNICODE) . '.';
-    if ($nativeWind) $instruction .= ' Para NativeWind, cite somente os nomes indispensáveis das classes e explique seus efeitos. Omita atributos className, JSX e blocos de código.';
-    $retryMessages = $messages;
-    array_splice($retryMessages, max(0, count($retryMessages) - 1), 0, [[ 'role' => 'system', 'content' => $instruction ]]);
-    return callOpenAI($retryMessages, 420);
+        ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Depois de responder à dúvida, explique brevemente por que você orienta sem entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”.'
+        : 'Comece pela orientação específica que o aluno pediu, sem anunciar recusa ou repetir uma resposta-padrão.';
+    $instruction = 'Reformule a resposta à última pergunta sem fornecer código. '
+        . 'Use a tentativa e os detalhes já informados na conversa. Diga o que observar ou mudar e em que parte do problema, '
+        . 'explique por que isso funciona e dê uma verificação prática ou um exemplo em palavras quando ajudar. '
+        . 'Se o aluno já compreendeu um conceito, avance para a aplicação em vez de repetir a definição. '
+        . 'Faça uma única pergunta específica somente se faltar informação que mude a orientação. '
+        . 'Evite aberturas genéricas e promessas de mostrar código. ' . $direction;
+    if ($nativeWind) {
+        $instruction .= ' Em NativeWind, você pode citar nomes de classes e de propriedades, inclusive className, '
+            . 'e indicar verbalmente em qual componente elas entram. Omita atribuições, JSX e caixas de código.';
+    }
+    array_splice($messages, -1, 0, [['role' => 'system', 'content' => $instruction]]);
+    return callOpenAI($messages, 420, onDelta: $onDelta);
 }
 
-function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages): string
+function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages, ?Closure $beginRetry = null): string
 {
     $codeLines = codeLineCount($answer);
     $nativeWind = isNativeWindTopic($message, $history);
@@ -313,18 +320,22 @@ function enforcePedagogicalCodeLimit(string $answer, array $history, string $mes
         return $answer;
     }
 
-    $retry = pedagogicalRetry($messages, $message, consecutiveCodeRequests($message, $history), $nativeWind);
-    if (codeLineCount($retry) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($retry, 0, false))) return $retry;
-    $withoutCode = trim(preg_replace('/```[^\n]*\n.*?```/s', '', $retry) ?? '');
-    if (!$nativeWind && $withoutCode !== '') return $withoutCode;
+    $insistence = consecutiveCodeRequests($message, $history);
+    $retry = pedagogicalRetry($messages, $insistence, $nativeWind, $beginRetry ? $beginRetry() : null);
+    $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
+    if ($prose !== '' && codeLineCount($prose) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($prose, 0, false))) {
+        return $prose;
+    }
     if ($nativeWind) {
-        if ($withoutCode !== '' && nativeWindCodeIsAllowed($withoutCode, codeLineCount($withoutCode), false)) return $withoutCode;
-        return 'Qual efeito visual você quer obter e o que já tentou no componente? Assim consigo apontar a classe mais útil.';
+        return 'Separe o efeito que você quer no contêiner do efeito em cada filho. '
+            . 'Para alinhar um grupo, observe a direção do contêiner que reúne esse grupo. '
+            . 'Para mudar o visual de um único elemento, verifique o estilo desse elemento. '
+            . 'Teste uma mudança de cada vez e confira qual região da tela foi afetada.';
     }
 
     $topic = trim(preg_replace('/\s+/', ' ', $message) ?? $message);
     $topic = function_exists('mb_substr') ? mb_substr($topic, 0, 120, 'UTF-8') : substr($topic, 0, 120);
-    return consecutiveCodeRequests($message, $history) > 3
+    return $insistence > 3
         ? "O Profe João fica bravo 🤣 se eu montar tudo por você. Pensando em “{$topic}”, qual entrada e qual resultado você definiria primeiro?"
         : "Pensando especificamente em “{$topic}”, qual entrada você já possui e qual resultado precisa obter antes de escolher a implementação?";
 }
@@ -684,14 +695,19 @@ try {
         }
     }
     foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
-    if (isNativeWindTopic($message, $history) && nativeWindCanShowExample($message, $history) && !recentCodeWasGiven($history)) {
-        $messages[] = ['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.'];
-    }
     $messages[] = ['role' => 'user', 'content' => $message];
+    $draftMessages = $messages;
+    if (isNativeWindTopic($message, $history) && nativeWindCanShowExample($message, $history) && !recentCodeWasGiven($history)) {
+        array_splice($draftMessages, -1, 0, [['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.']]);
+    }
     $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
     if ($streaming) startJoiaStream();
-    $draft = callOpenAI($messages, onDelta: $streaming ? joiaProsePreview() : null);
-    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages);
+    $draft = callOpenAI($draftMessages, onDelta: $streaming ? joiaProsePreview() : null);
+    $beginRetry = $streaming ? static function (): Closure {
+        sendJoiaStreamEvent('retry');
+        return joiaProsePreview();
+    } : null;
+    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $beginRetry);
     updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
         $now = gmdate('c');
         $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];

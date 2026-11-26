@@ -26,6 +26,7 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const listPattern = /^\s*(?:(\d{1,9})[.)]|[-+*])\s+(.+)$/;
   const headingPattern = /^#{1,6}\s+(.+)$/;
+  const dividerPattern = /^ {0,3}(?:-{3,}|\*{3,}|_{3,})[\t ]*$/;
   let hasEmoji = /\p{Extended_Pictographic}/u.test(text);
   function withTipIcon(line, heading = false){
     if(!addTipIcon || hasEmoji) return line;
@@ -58,6 +59,11 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
       block.append(code);
       content.append(block);
       if(index < lines.length) index++;
+      continue;
+    }
+    if(dividerPattern.test(line)){
+      content.append(document.createElement("hr"));
+      index++;
       continue;
     }
     const heading = line.match(headingPattern);
@@ -117,7 +123,8 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
     appendJoiaInline(paragraph, withTipIcon(line));
     index++;
     while(index < lines.length && lines[index].trim() && !headingPattern.test(lines[index])
-      && !listPattern.test(lines[index]) && !fencePattern.test(lines[index]) && !tableStart(index)){
+      && !listPattern.test(lines[index]) && !dividerPattern.test(lines[index])
+      && !fencePattern.test(lines[index]) && !tableStart(index)){
       paragraph.append(document.createElement("br"));
       appendJoiaInline(paragraph, lines[index++]);
     }

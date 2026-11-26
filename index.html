@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.14. -->
-<meta name="application-version" content="1.14" />
+<!-- Versão 1.15. -->
+<meta name="application-version" content="1.15" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -249,9 +249,12 @@ button, input, textarea { font-family: inherit; }
   line-height: 1.65;
   max-width: 68ch;
 }
-.joia-markdown > * { margin: 0 0 .8em; }
+.joia-markdown > * { margin: 0 0 1em; }
 .joia-markdown > :last-child { margin-bottom: 0; }
-.joia-markdown h3 { color: #a7efd4; font-size: 1.08em; line-height: 1.35; }
+.joia-markdown h3 { color: #a7efd4; font-size: 1.12em; line-height: 1.35; margin-bottom: .5em; }
+.joia-markdown > * + h3 { margin-top: 1.25em; }
+.joia-markdown hr { margin-block: 1.25em; border: 0; border-top: 1px solid #466759; opacity: 1; }
+.joia-markdown em { color: #b8dacf; }
 .joia-markdown strong { color: #eef9f4; font-weight: 700; }
 .joia-markdown :is(ul, ol) { padding-inline-start: 1.55em; }
 .joia-markdown li + li { margin-top: .4em; }
@@ -274,7 +277,7 @@ button, input, textarea { font-family: inherit; }
 .joia-table { overflow-x: auto; }
 .joia-table table { border-collapse: collapse; width: 100%; }
 .joia-table :is(th, td) { padding: .4em .6em; border-bottom: 1px solid #335348; text-align: left; }
-.joia-table th { color: #a7efd4; }
+.joia-table th { color: #a7efd4; background: #172a25; }
 @media (prefers-reduced-motion: no-preference) {
   .joia-markdown.new-reply { animation: joia-reply-in .18s ease-out; }
 }
@@ -522,7 +525,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.14</small>
+      <small class="app-version" title="Versão da JOIA">v1.15</small>
     </header>
 
     <section id="output" class="output">
@@ -583,7 +586,7 @@ button, input, textarea { font-family: inherit; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
-<script src="./assets/chat/markdown.js?v=1.11"></script>
+<script src="./assets/chat/markdown.js?v=1.15"></script>
 <script>
 window.lucide?.createIcons();
 
@@ -635,7 +638,7 @@ async function readJoiaStream(body, onUpdate){
         if(!line.trim()) continue;
         const event = JSON.parse(line);
         if(event.type === "start") paragraphMode = event.mode === "paragraphs";
-        if(paragraphMode && (event.type === "delta" || event.type === "retry")) onUpdate(event);
+        if(paragraphMode && ["start", "phase", "delta", "retry"].includes(event.type)) onUpdate(event);
         if(event.type === "error") throw new Error(event.erro);
         if(event.type === "done"){
           completed = true;
@@ -689,7 +692,7 @@ function showIssuedCode(code){
       copy.textContent = "Selecione e copie o código acima";
     }
   });
-  panel.append("Guarde este código em um local seguro. Ele dá acesso ao seu histórico e às suas anotações.", codeText, copy);
+  panel.append("Guarde este código em um local seguro. Ele permite continuar seus estudos e recuperar as suas anotações.", codeText, copy);
   output.appendChild(panel);
   focusMessage(panel);
 }
@@ -700,14 +703,8 @@ function enterStudent(data){
   notesRevision = data.revisao;
   saveStatus.textContent = "Caderno sincronizado";
   document.getElementById("welcome")?.remove();
-  for(const item of data.historico){
-    if(item.role === "user" || item.role === "assistant"){
-      renderMessage(item.content, item.role === "user" ? "user" : "joia", false);
-      if(item.role === "assistant") lastJoiaAnswer = item.content;
-    }
-  }
-  if(data.codigo) showIssuedCode(data.codigo);
-  if(!data.historico.length){
+  if(data.codigo){
+    showIssuedCode(data.codigo);
     const suggestions = document.getElementById("studySuggestions").content.firstElementChild.cloneNode(true);
     suggestions.id = "activeSuggestions";
     suggestions.addEventListener("click", event => {
@@ -729,7 +726,7 @@ function showEntryState(data){
   if(data.etapa === "conversation"){
     enterStudent(data);
     if(!data.codigo && !adminTokenPending){
-      renderMessage("Bem-vindo de volta. Podemos continuar de onde você parou.", "joia");
+      renderMessage("Que bom ter você de volta! O que vamos estudar hoje?", "joia");
     }
   } else if(!adminTokenPending){
     const prompts = {
@@ -894,7 +891,6 @@ async function sendMsg(){
   }
   document.getElementById("activeSuggestions")?.remove();
   accessStatus.textContent = "";
-  userInput.value = "";
   userInput.disabled = true;
   const thinking = showThinking();
   const replyStatus = document.createElement("p");
@@ -903,8 +899,24 @@ async function sendMsg(){
   let streamedReply = null;
   let streamedContent = null;
   let hasReplyIcon = false;
+  let question = null;
+  function confirmQuestion(){
+    if(question) return;
+    userInput.value = "";
+    question = renderMessage(msg, "user");
+    thinking.before(question);
+  }
   try {
     const data = await requestJoia({mensagem: msg, request_id: crypto.randomUUID?.()}, event => {
+      if(event.type === "start"){
+        confirmQuestion();
+        thinking.querySelector('[role="status"]').textContent = "Preparando o contexto…";
+        return;
+      }
+      if(event.type === "phase"){
+        if(event.phase === "answer") thinking.querySelector('[role="status"]').textContent = "Preparando a explicação…";
+        return;
+      }
       if(event.type === "retry"){
         const status = streamedReply ? replyStatus : thinking.querySelector('[role="status"]');
         status.textContent = "Ajustando os próximos passos…";
@@ -913,8 +925,8 @@ async function sendMsg(){
       }
       replyStatus.remove();
       if(!streamedReply){
+        confirmQuestion();
         thinking.remove();
-        renderMessage(msg, "user");
         streamedReply = renderMessage("", "joia");
         streamedContent = streamedReply.querySelector(".joia-markdown");
         streamedContent.classList.add("joia-stream-preview");
@@ -924,13 +936,15 @@ async function sendMsg(){
       streamedContent.append(...fragment.childNodes);
     });
     replyStatus.remove();
-    if(!streamedReply && !adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
+    if(!adminTokenPending && data.etapa !== "admin_token") confirmQuestion();
+    userInput.value = "";
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
     renderReply(data.resposta, data.download || "", streamedReply);
     if(data.codigo) enterStudent(data);
   } catch (error) {
     thinking.remove();
+    if(adminTokenPending) userInput.value = "";
     if(streamedReply){
       streamedContent.classList.remove("joia-stream-preview");
       replyStatus.textContent = `⚠️ Resposta interrompida. ${error.message}`;
@@ -1047,7 +1061,7 @@ document.getElementById("showCode").addEventListener("click", () => {
 });
 codeForm.addEventListener("submit", event => {
   event.preventDefault();
-  runEntry({acao: "retomar", codigo: codeInput.value.trim()}, codeInput);
+  runEntry({acao: "retomar", codigo: codeInput.value.trim(), mostrar_historico: false}, codeInput);
 });
 
 const oldNotes = localStorage.getItem("joia_notes");
@@ -1057,7 +1071,7 @@ if(oldNotes?.trim()){
   exportOld.addEventListener("click", () => downloadNotes(oldNotes));
 }
 
-requestJoia({acao: "estado"}).then(showEntryState).catch(error => {
+requestJoia({acao: "estado", mostrar_historico: false}).then(showEntryState).catch(error => {
   accessStatus.textContent = error.message;
 }).finally(() => {
   restoringEntry = false;

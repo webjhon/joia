@@ -1,11 +1,12 @@
 {
   "titulo": "Caixa de código de NativeWind, emojis úteis e versão visível",
-  "situacao": "aprovada",
+  "situacao": "substituida",
   "fonte": "Correção solicitada na conversa da JOIA no Codex",
   "termos": ["NativeWind", "className", "caixa de código", "emoji", "frontend", "versão"],
   "pedidos": ["Resumo: mostrar exemplos curtíssimos de NativeWind em uma caixa de código quando ajudarem o aluno, usar emojis com moderação e tornar visível a versão implantada."],
   "decisoes": [
     "A exceção permite uma caixa com uma linha className, até três utilidades e 64 caracteres, quando o aluno demonstra o objetivo de estilo.",
-    "Dicas e alertas podem receber um emoji funcional. O cabeçalho identifica a versão em telas pequenas e grandes."
+    "Dicas e alertas podem receber um emoji funcional. O cabeçalho identifica a versão em telas pequenas e grandes.",
+    "Os formatos e limites das pistas foram atualizados em formato-e-pistas-guiadas.json. As orientações sobre emojis e identificação de versão continuam aplicáveis."
   ]
 }

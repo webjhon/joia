@@ -1,0 +1,13 @@
+{
+  "titulo": "Leitura em Markdown e pistas guiadas de NativeWind e Animated",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["chat", "Markdown", "formatação", "negrito", "listas", "tabelas", "emoji", "NativeWind", "React Native", "Animated", "pistas", "limite de sessão"],
+  "pedidos": ["Dar respostas claras e escaneáveis e permitir exemplos muito curtos de NativeWind e da API Animated do React Native quando ajudarem a entender uma dúvida concreta, sem exigir palavras-chave do aluno."],
+  "decisoes": [
+    "Responder de forma direta e específica e usar Markdown que facilite a leitura. Usar listas, tabelas, destaques e emojis apenas quando tiverem uma função clara.",
+    "Permitir uma pista isolada de NativeWind ou de Animated do React Native no formato e no limite da sessão validados pelo servidor.",
+    "Distinguir sinais de configuração, estilo e animação. Quando a pista em código não couber, indicar em palavras onde mexer, por que o ajuste funciona e o que o aluno deve observar.",
+    "Esta decisão atualiza o escopo de pistas registrado em caixa-nativewind.json."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "titulo": "Recuperação vetorial do histórico do aluno",
+  "situacao": "aprovada",
+  "fonte": "Conversa da JOIA no Codex, 26/11/2026",
+  "termos": ["alunos", "histórico", "embeddings", "SQLite", "banco vetorial", "RAG"],
+  "pedidos": [
+    "Resumo: usar embeddings e um banco vetorial para aproveitar conversas anteriores do mesmo aluno e melhorar a eficiência do contexto enviado à JOIA."
+  ],
+  "decisoes": [
+    "Preservar o histórico completo para relatórios e recuperar um número limitado de trocas relevantes para o chat.",
+    "Manter o índice derivado e filtrado pelo identificador do aluno já associado à sessão."
+  ]
+}

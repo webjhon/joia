@@ -95,3 +95,26 @@ ajudar estudantes a aprender com mais confiança e autonomia.
 **JOIA** — aprender com tecnologia, crescer com orientação.
 
 </div>
+
+## Memória vetorial dos alunos
+
+O chat pode recuperar até duas trocas anteriores relevantes do mesmo cadastro.
+Quando encontra correspondências, envia ao modelo essas trocas, as quatro
+mensagens mais recentes e a pergunta atual. O histórico completo continua no
+JSON do aluno e segue disponível para os relatórios.
+
+Para ativar, habilite as extensões PHP `pdo_sqlite`, `curl` e `mbstring` e
+configure `JOIA_VECTOR_DIR` com o caminho de um diretório privado, gravável
+pelo PHP, fora da raiz pública e do repositório. O PHP cria
+`joia-vetores.sqlite3` nesse diretório. Use uma pasta com acesso restrito à
+conta do serviço. A configuração `OPENAI_API_KEY` também é usada para
+`text-embedding-3-small`. O banco armazena somente o identificador interno,
+a versão do modelo, o hash da pergunta e o vetor. A API de embeddings recebe
+o texto das perguntas, que pode conter dados digitados pelo aluno.
+
+A JOIA indexa perguntas anteriores em pequenos lotes durante o chat e
+reaproveita os vetores nas próximas buscas. A comparação por cosseno é local
+e percorre apenas os vetores do aluno. Se a busca não encontrar resultados
+ou o serviço estiver indisponível, o chat usa a janela padrão de 12
+mensagens. O armazenamento dos vetores é derivado e pode ser recriado a
+partir do histórico. A busca usa o cadastro já associado à sessão do chat.

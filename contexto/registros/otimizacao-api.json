@@ -1,0 +1,14 @@
+{
+  "titulo": "Otimização de custo com observabilidade privada",
+  "situacao": "aprovada",
+  "fonte": "Missão de otimização enviada na conversa da JOIA no Codex",
+  "termos": ["tokens", "custos", "prompt caching", "Adaptive RAG", "embeddings", "orçamento", "observabilidade", "relatórios", "SQLite"],
+  "pedidos": [
+    "Reduzir desperdício de chamadas e tokens da OpenAI sem regredir qualidade pedagógica, memória, relatórios ou segurança. Entregar auditoria, implementação, testes comparativos e documentação."
+  ],
+  "decisoes": [
+    "Medir o uso dos endpoints existentes sem chamadas adicionais ao modelo e manter apenas métricas operacionais em diretório privado.",
+    "Priorizar instruções estáveis, recuperação adaptativa conservadora e processamento local em etapas determinísticas.",
+    "Preservar os textos do histórico para análise qualitativa e distinguir números simulados, estimativas e medidas reais da API."
+  ]
+}

@@ -490,15 +490,14 @@ button, input, textarea { font-family: inherit; }
         <div class="welcome-mark">💎</div><h1>JOIA</h1>
         <p>É seu primeiro acesso ou você já tem um código?</p>
         <div class="icebreakers" aria-label="Opções de acesso">
-          <button class="icebreaker" id="startStudent">NOVO USUÁRIO</button>
-          <button class="icebreaker" id="showCode">JÁ TENHO UM CÓDIGO</button>
+          <button class="icebreaker" id="startStudent" disabled>NOVO USUÁRIO</button>
+          <button class="icebreaker" id="showCode" disabled>JÁ TENHO UM CÓDIGO</button>
         </div>
         <form class="access-form" id="codeForm" hidden>
           <input id="studentCode" type="password" aria-label="Código de acesso" autocomplete="off" autocapitalize="off" spellcheck="false" required />
           <button class="action-btn" type="submit">Entrar</button>
         </form>
         <p class="access-status" id="accessStatus" role="status"></p>
-        <button class="action-btn" id="teacherAccess">Área docente</button>
         <button class="action-btn" id="downloadLegacyNotes" hidden>Baixar anotações antigas deste dispositivo</button>
       </div>
     </section>
@@ -565,6 +564,7 @@ let head = null;
 let avatarLoading = false;
 let joiaVoice = null;
 let restoringEntry = true;
+let adminTokenPending = false;
 let studentActive = false;
 let notesRevision = 0;
 let savedNotes = "";
@@ -588,6 +588,7 @@ async function requestJoia(payload){
 
 function enableChat(){
   userInput.disabled = false;
+  userInput.type = adminTokenPending ? "password" : "text";
   userInput.focus();
 }
 
@@ -639,30 +640,39 @@ function enterStudent(data){
 }
 
 function showEntryState(data){
-  if(data.etapa === "entrada") return;
+  adminTokenPending = data.etapa === "admin_token" || data.credencial_docente === true;
+  if(data.etapa === "entrada"){
+    enableChat();
+    return;
+  }
   if(data.etapa === "conversation"){
     enterStudent(data);
-    if(!data.codigo) renderMessage("Bem-vindo de volta. Podemos continuar de onde você parou.", "joia");
-  } else {
+    if(!data.codigo && !adminTokenPending){
+      renderMessage("Bem-vindo de volta. Podemos continuar de onde você parou.", "joia");
+    }
+  } else if(!adminTokenPending){
     const prompts = {
       welcome: "Olá! Como posso te chamar?",
       name: "Qual é sua turma, curso, ano ou período?",
-      class: "Qual é sua instituição, escola ou unidade?"
+      class: "Qual é sua instituição, escola ou unidade?",
+      admin_choose: "Informe o número ou o nome do aluno.",
+      admin_report: "Você pode solicitar o PDF do relatório."
     };
-    renderMessage(data.cadastro ? prompts[data.etapa] : "Digite iProgram.ger para acessar a área docente.", "joia");
+    renderMessage(prompts[data.etapa], "joia");
   }
+  if(adminTokenPending) renderMessage("Informe o token de acesso para consultar os relatórios.", "joia");
   enableChat();
 }
 
 async function runEntry(payload, button){
-  if(restoringEntry || document.querySelector("#welcome button:disabled")) return;
+  if(restoringEntry || userInput.disabled || document.querySelector("#welcome button:disabled")) return;
   const buttons = [...document.querySelectorAll("#welcome button")];
   buttons.forEach(item => item.disabled = true);
   accessStatus.textContent = "";
   try {
     const data = await requestJoia(payload);
     codeInput.value = "";
-    showEntryState({...data, cadastro: payload.acao === "novo" || data.cadastro});
+    showEntryState(data);
   } catch(error) {
     accessStatus.textContent = error.message;
     button?.focus();
@@ -799,27 +809,33 @@ async function loadAvatar(){
 
 async function sendMsg(){
   const msg = userInput.value.trim();
-  if(!msg) return;
+  if(!msg || restoringEntry || userInput.disabled || document.querySelector("#welcome button:disabled")) return;
+  const atEntry = !!document.getElementById("welcome");
   if(/^[a-f0-9]{32}-[a-f0-9]{32}$/i.test(msg)){
     userInput.value = "";
-    renderMessage("Use o código apenas na opção Já tenho um código.", "joia");
+    const hint = "Use o código apenas na opção Já tenho um código.";
+    if(atEntry) accessStatus.textContent = hint;
+    else renderMessage(hint, "joia");
     return;
   }
   document.getElementById("activeSuggestions")?.remove();
-  renderMessage(msg, "user");
+  accessStatus.textContent = "";
   userInput.value = "";
   userInput.disabled = true;
   showThinking();
   try {
     const data = await requestJoia({mensagem: msg});
+    if(!adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
+    document.getElementById("welcome")?.remove();
+    adminTokenPending = data.etapa === "admin_token";
     await renderTypedMessage(data.resposta, data.download || "");
     if(data.codigo) enterStudent(data);
   } catch (error) {
     document.getElementById("thinking")?.remove();
-    await renderTypedMessage(`⚠️ ${error.message}`);
+    if(atEntry) accessStatus.textContent = error.message;
+    else await renderTypedMessage(`⚠️ ${error.message}`);
   } finally {
-    userInput.disabled = false;
-    userInput.focus();
+    enableChat();
   }
 }
 
@@ -922,7 +938,6 @@ document.getElementById("newConversation").addEventListener("click", async () =>
   }
 });
 document.getElementById("startStudent").addEventListener("click", event => runEntry({acao: "novo"}, event.currentTarget));
-document.getElementById("teacherAccess").addEventListener("click", event => runEntry({acao: "docente"}, event.currentTarget));
 document.getElementById("showCode").addEventListener("click", () => {
   codeForm.hidden = false;
   codeInput.focus();
@@ -941,7 +956,14 @@ if(oldNotes?.trim()){
 
 requestJoia({acao: "estado"}).then(showEntryState).catch(error => {
   accessStatus.textContent = error.message;
-}).finally(() => { restoringEntry = false; });
+}).finally(() => {
+  restoringEntry = false;
+  if(document.getElementById("welcome")){
+    document.getElementById("startStudent").disabled = false;
+    document.getElementById("showCode").disabled = false;
+    enableChat();
+  }
+});
 
 userInput.addEventListener("keydown", e=>{
   if(e.key==="Enter") sendMsg();

@@ -8,6 +8,6 @@
   ],
   "decisoes": [
     "O acesso por código reutiliza o mesmo identificador interno do histórico e da memória vetorial.",
-    "Guardar o verificador do código e as anotações em armazenamento privado no servidor. Manter a área docente como entrada separada."
+    "Guardar o verificador do código e as anotações em armazenamento privado no servidor. A decisão sobre a entrada docente foi substituída pelo registro acesso-docente-reservado.json."
   ]
 }

@@ -1,0 +1,8 @@
+{
+  "titulo": "Acesso docente reservado pelo campo de mensagem",
+  "situacao": "aprovada",
+  "fonte": "Correção solicitada na conversa da JOIA no Codex",
+  "termos": ["docente", "entrada", "comando", "relatórios", "tela inicial"],
+  "pedidos": ["Resumo: remover o botão de acesso docente da tela inicial e a dica que divulga o comando. Manter a entrada por digitação direta quando o docente precisar."],
+  "decisoes": ["A tela inicial oferece as entradas do aluno. A abertura docente ocorre pelo campo de mensagem e o comando fica fora do chat e do material de treinamento."]
+}

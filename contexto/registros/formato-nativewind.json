@@ -1,0 +1,11 @@
+{
+  "titulo": "Formatação das respostas e exceção pontual de NativeWind",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["Markdown", "formatação", "legibilidade", "emoji", "NativeWind", "className", "pedagogia"],
+  "pedidos": ["Resumo: melhorar a diagramação das respostas e a leitura com destaques e emojis estratégicos. Em NativeWind, ajudar com as classes quando o aluno demonstrar entendimento e permitir apenas um exemplo curtíssimo que ilustre o conceito. Identificar a mudança com uma nova versão do frontend."],
+  "decisoes": [
+    "Aplicar o mesmo Markdown seguro às respostas novas e ao histórico.",
+    "Permitir um atributo className inline de até três utilidades simples exclusivamente na situação pedagógica descrita. Preservar os limites gerais e o intervalo entre exemplos de código."
+  ]
+}

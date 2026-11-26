@@ -210,11 +210,48 @@ function codeLineCount(string $answer): int
         $withoutBlocks = preg_replace('/```[^\n]*\n.*?```/s', '', $answer) ?? $answer;
     }
     foreach (preg_split('/\R/', $withoutBlocks) ?: [] as $line) {
-        if (preg_match('/^\s*(?:const|let|var|import|export|public|private|protected|class|function|def|return|if|for|while)\b|^\s*[A-Za-z_$][\w$]*(?:\.[\w$]+)+\s*\(/', $line)) {
+        if (preg_match('/\bclassName\s*=/', $line) || preg_match('/^\s*(?:const|let|var|import|export|public|private|protected|class|function|def|return|if|for|while)\b|^\s*[A-Za-z_$][\w$]*(?:\.[\w$]+)+\s*\(/', $line)) {
             $count++;
         }
     }
     return $count;
+}
+
+function isNativeWindTopic(string $message, array $history): bool
+{
+    $recentLearnerText = [$message];
+    foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
+        if (($item['role'] ?? '') === 'user') $recentLearnerText[] = (string) ($item['content'] ?? '');
+    }
+    return preg_match('/\bnativewind\b/i', implode("\n", $recentLearnerText)) === 1;
+}
+
+function nativeWindCodeIsAllowed(string $answer, string $message, int $codeLines, array $history): bool
+{
+    if (preg_match('/```|<\/?[A-Za-z][\w.]*[\s\/>]/', $answer)) return false;
+    if (!preg_match('/\bclassName\s*=/', $answer)) return $codeLines === 0;
+    if ($codeLines !== 1 || preg_match_all('/\bclassName\s*=/', $answer) !== 1) return false;
+    if (!preg_match('/\b(?:classe[s]?|utilitari[oa]s?|classname)\b/', normalize($message))) return false;
+
+    $learnerMessages = [$message];
+    foreach (array_slice($history, -HISTORY_WINDOW) as $item) {
+        if (($item['role'] ?? '') === 'user') $learnerMessages[] = (string) ($item['content'] ?? '');
+    }
+    // The prompt evaluates understanding. Require a concrete styling intent as a minimum.
+    $hasIntent = false;
+    foreach ($learnerMessages as $learnerMessage) {
+        $normalized = normalize($learnerMessage);
+        if (preg_match('/\b(?:quero|preciso|pretendo|tentei|usei|ja tenho|estou usando|minha ideia|vou)\b/', $normalized)
+            && preg_match('/\b(?:alinha\w*|centrali[zs]\w*|espaca\w*|margem|padding|gap|coluna|linha|bordas?|largura|altura|cores?|fundo|opacidade|flex\w*|grid|sombra|lado|vertical|horizontal|fonte|tamanho|negrito|posicao)\b/', $normalized)) {
+            $hasIntent = true;
+            break;
+        }
+    }
+    if (!$hasIntent || preg_match('/`(className="[a-z0-9-]+(?::[a-z0-9-]+)*(?: [a-z0-9-]+(?::[a-z0-9-]+)*){0,2}")`/', $answer, $snippet) !== 1
+        || strlen($snippet[1]) > 64) return false;
+
+    $rest = str_replace($snippet[0], '', $answer);
+    return preg_match('/`[^`\n]*[=(){}<>;][^`\n]*`/', $rest) !== 1;
 }
 
 function recentCodeWasGiven(array $history): bool
@@ -243,12 +280,13 @@ function consecutiveCodeRequests(string $message, array $history): int
     return $count;
 }
 
-function pedagogicalRetry(array $messages, string $message, int $insistence): string
+function pedagogicalRetry(array $messages, string $message, int $insistence, bool $nativeWind): string
 {
     $direction = $insistence > 3
         ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Explique agora, de forma dinâmica e ligada ao assunto, por que você guia em vez de entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”. Depois faça uma provocação útil.'
         : 'Não anuncie recusa, não diga que não pode ou não quer fornecer código e não repita uma resposta-padrão. Responda diretamente ao conteúdo específico desta mensagem com uma explicação conceitual curta e uma nova pergunta provocativa que ajude o aluno a decidir o próximo passo.';
     $instruction = 'A resposta anterior foi barrada por conter código demais. ' . $direction . ' Não inclua nenhuma linha de código nesta nova resposta. Mensagem atual: ' . json_encode($message, JSON_UNESCAPED_UNICODE) . '.';
+    if ($nativeWind) $instruction .= ' Para NativeWind, cite somente os nomes indispensáveis das classes e explique seus efeitos. Omita atributos className, JSX e blocos de código.';
     $retryMessages = $messages;
     array_splice($retryMessages, max(0, count($retryMessages) - 1), 0, [[ 'role' => 'system', 'content' => $instruction ]]);
     return callOpenAI($retryMessages, 420);
@@ -257,12 +295,21 @@ function pedagogicalRetry(array $messages, string $message, int $insistence): st
 function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages): string
 {
     $codeLines = codeLineCount($answer);
-    if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))) return $answer;
+    $nativeWind = isNativeWindTopic($message, $history);
+    if ($codeLines <= 2 && ($codeLines === 0 || !recentCodeWasGiven($history))
+        && (!$nativeWind || nativeWindCodeIsAllowed($answer, $message, $codeLines, $history))) {
+        return $answer;
+    }
 
-    $retry = pedagogicalRetry($messages, $message, consecutiveCodeRequests($message, $history));
-    if (codeLineCount($retry) === 0) return $retry;
-    $withoutCode = preg_replace('/```[^\n]*\n.*?```/s', '', $retry) ?? '';
-    if (trim($withoutCode) !== '') return trim($withoutCode);
+    $retry = pedagogicalRetry($messages, $message, consecutiveCodeRequests($message, $history), $nativeWind);
+    if (codeLineCount($retry) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($retry, $message, 0, $history))) return $retry;
+    $withoutCode = trim(preg_replace('/```[^\n]*\n.*?```/s', '', $retry) ?? '');
+    if (!$nativeWind && $withoutCode !== '') return $withoutCode;
+    if ($nativeWind) {
+        if ($withoutCode !== '' && nativeWindCodeIsAllowed($withoutCode, $message, codeLineCount($withoutCode), $history)
+            && !preg_match('/\bclassName\s*=/', $withoutCode)) return $withoutCode;
+        return 'Qual efeito visual você quer obter e o que já tentou no componente? Assim consigo apontar a classe mais útil.';
+    }
 
     $topic = trim(preg_replace('/\s+/', ' ', $message) ?? $message);
     $topic = function_exists('mb_substr') ? mb_substr($topic, 0, 120, 'UTF-8') : substr($topic, 0, 120);

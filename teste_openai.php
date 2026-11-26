@@ -40,6 +40,7 @@ const MAX_MESSAGE_LENGTH = 4000;
 const HISTORY_WINDOW = 12;
 
 require_once __DIR__ . '/includes/memoria_vetorial.php';
+require_once __DIR__ . '/includes/streaming.php';
 const ADMIN_TOKEN_HASH = 'f04e14dd48355876aef4b1e970cef7ae1fb74bf937c9845aca08675d03c9ca5b'; // sha256 de 91332211
 
 function respond(array $payload, int $status = 200): void
@@ -178,16 +179,18 @@ function openAIApiKey(): string
     return $key;
 }
 
-function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false): string
+function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false, ?callable $onDelta = null): string
 {
     if (!function_exists('curl_init')) throw new RuntimeException('A extensão PHP cURL não está habilitada no servidor.');
     array_unshift($messages, ['role' => 'system', 'content' => instructionDocuments()]);
     $body = ['model' => OPENAI_MODEL, 'messages' => $messages, 'temperature' => 0.35, 'max_tokens' => $maxTokens];
+    if ($onDelta !== null) $body['stream'] = true;
     if ($json) $body['response_format'] = ['type' => 'json_object'];
     $ch = curl_init(OPENAI_ENDPOINT);
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 60,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . openAIApiKey()],
         CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+    if ($onDelta !== null) return readJoiaOpenAIStream($ch, $onDelta);
     $raw = curl_exec($ch); $error = curl_error($ch); $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($raw === false) throw new RuntimeException('Não foi possível conectar à OpenAI: ' . $error);
     $data = json_decode($raw, true);
@@ -536,6 +539,7 @@ if ($action === 'reset') {
     respond(['resposta' => 'Nova conversa iniciada.', 'etapa' => 'reset']);
 }
 $state = $_SESSION['conversations'][$conversationId] ?? null;
+$streaming = false;
 
 try {
     if ($action === 'novo') {
@@ -684,12 +688,21 @@ try {
         $messages[] = ['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.'];
     }
     $messages[] = ['role' => 'user', 'content' => $message];
-    $answer = enforcePedagogicalCodeLimit(callOpenAI($messages), $history, $message, $messages);
+    $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
+    if ($streaming) startJoiaStream();
+    $draft = callOpenAI($messages, onDelta: $streaming ? joiaProsePreview() : null);
+    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages);
     updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
         $now = gmdate('c');
         $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];
         $item['history'][] = ['role' => 'assistant', 'content' => $answer, 'timestamp' => $now];
         return $item;
     });
-    respond(['resposta' => $answer, 'etapa' => 'conversation']);
-} catch (Throwable $error) { error_log('JOIA: ' . $error->getMessage()); respond(['erro' => $error->getMessage()], 502); }
+    $payload = ['resposta' => $answer, 'etapa' => 'conversation'];
+    if ($streaming) sendJoiaStreamEvent('done', $payload);
+    else respond($payload);
+} catch (Throwable $error) {
+    error_log('JOIA: ' . $error->getMessage());
+    if ($streaming) sendJoiaStreamEvent('error', ['erro' => 'A resposta não foi concluída. Envie a mensagem novamente.']);
+    else respond(['erro' => $error->getMessage()], 502);
+}

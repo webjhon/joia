@@ -1,0 +1,12 @@
+{
+  "titulo": "Streaming textual progressivo no chat",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["streaming", "NDJSON", "latência", "resposta progressiva", "OpenAI", "chat"],
+  "pedidos": ["Entregar o texto da resposta durante a geração para que o aluno comece a ler antes da conclusão."],
+  "decisoes": [
+    "Transmitir prosa em partes durante a geração, guardar trechos que aparentam código para validação e persistir a resposta final.",
+    "Formatar a prévia de prosa e de nomes de classes sem antecipar as caixas de código.",
+    "Preservar o contrato JSON para as demais ações do aplicativo."
+  ]
+}

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.10. -->
-<meta name="application-version" content="1.10" />
+<!-- Versão 1.11. -->
+<meta name="application-version" content="1.11" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -521,7 +521,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.10</small>
+      <small class="app-version" title="Versão da JOIA">v1.11</small>
     </header>
 
     <section id="output" class="output">
@@ -582,7 +582,7 @@ button, input, textarea { font-family: inherit; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
-<script src="./assets/chat/markdown.js?v=1.10"></script>
+<script src="./assets/chat/markdown.js?v=1.11"></script>
 <script>
 window.lucide?.createIcons();
 
@@ -614,12 +614,50 @@ const accessStatus = document.getElementById("accessStatus");
 const codeForm = document.getElementById("codeForm");
 const codeInput = document.getElementById("studentCode");
 
-async function requestJoia(payload){
+const joiaStreamType = "application/x-ndjson";
+
+async function readJoiaStream(body, onDelta){
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let pending = "";
+  let completed = false;
+  try {
+    while(true){
+      const {value, done} = await reader.read();
+      if(done) throw new Error("A conexão terminou antes de concluir a resposta.");
+      pending += decoder.decode(value, {stream:true});
+      let newline;
+      while((newline = pending.indexOf("\n")) !== -1){
+        const line = pending.slice(0, newline);
+        pending = pending.slice(newline + 1);
+        if(!line.trim()) continue;
+        const event = JSON.parse(line);
+        if(event.type === "delta") onDelta(event.text);
+        if(event.type === "error") throw new Error(event.erro);
+        if(event.type === "done"){
+          completed = true;
+          return event;
+        }
+      }
+    }
+  } finally {
+    if(!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+async function requestJoia(payload, onDelta){
   const res = await fetch(apiUrl, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": onDelta && typeof ReadableStream !== "undefined" ? joiaStreamType : "application/json"
+    },
     body: JSON.stringify({...payload, conversation_id: conversationId})
   });
+  if(res.ok && res.headers.get("Content-Type")?.startsWith(joiaStreamType) && res.body && onDelta){
+    return readJoiaStream(res.body, onDelta);
+  }
   const data = await res.json().catch(() => null);
   if(!data) throw new Error(`Resposta inválida do servidor (HTTP ${res.status}).`);
   if(!res.ok) throw new Error(data.erro || data.resposta || "Não foi possível acessar a JOIA.");
@@ -755,9 +793,10 @@ function showThinking(){
   output.appendChild(div);
 }
 
-function renderReply(text, downloadUrl = ""){
+function renderReply(text, downloadUrl = "", preview = null){
   document.getElementById("thinking")?.remove();
-  const div = renderMessage(text, "joia");
+  const div = preview ?? renderMessage(text, "joia");
+  if(preview) div.querySelector(".joia-markdown").replaceWith(renderJoiaMarkdown(text));
   div.querySelector(".joia-markdown").classList.add("new-reply");
   lastJoiaAnswer = text;
   if(downloadUrl){
@@ -853,14 +892,27 @@ async function sendMsg(){
   userInput.value = "";
   userInput.disabled = true;
   showThinking();
+  let preview = null;
+  let previewText = "";
   try {
-    const data = await requestJoia({mensagem: msg});
-    if(!adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
+    const data = await requestJoia({mensagem: msg}, delta => {
+      if(!preview){
+        document.getElementById("thinking")?.remove();
+        renderMessage(msg, "user");
+        preview = renderMessage("", "joia");
+      }
+      previewText += delta;
+      const fragment = renderJoiaMarkdown(previewText, {addTipIcon: false});
+      fragment.classList.add("joia-stream-preview");
+      preview.querySelector(".joia-markdown").replaceWith(fragment);
+    });
+    if(!preview && !adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
-    renderReply(data.resposta, data.download || "");
+    renderReply(data.resposta, data.download || "", preview);
     if(data.codigo) enterStudent(data);
   } catch (error) {
+    preview?.remove();
     document.getElementById("thinking")?.remove();
     if(atEntry) accessStatus.textContent = error.message;
     else renderReply(`⚠️ ${error.message}`);

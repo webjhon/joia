@@ -88,6 +88,7 @@ function joiaParagraphMayBePublished(string $text): bool
     if (preg_match('/\b(?:vou|vamos|posso|irei)\s+(?:te\s+)?(?:mostrar|exibir|escrever|montar|dar|gerar)\b|\b(?:abaixo|a seguir|aqui est[áa] (?:um|o) exemplo|segue (?:um|o) exemplo)\b/iu', $prose)) {
         return false;
     }
+    if (preg_match('/\b(?:vamos|vou|aqui vai)\b.{0,60}\b(?:exemplo|trecho|código)\b/iu', $prose)) return false;
     return preg_match('/^(?:perfeito|claro|entendi|com certeza|boa|ótim[oa])(?:[!,.: ]|$)/iu', $body) !== 1
         || str_word_count(normalize($body)) >= 9;
 }

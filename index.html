@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.12. -->
-<meta name="application-version" content="1.12" />
+<!-- Versão 1.13. -->
+<meta name="application-version" content="1.13" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -321,6 +321,7 @@ button, input, textarea { font-family: inherit; }
 .icebreaker { border:1px solid #2ee59d38; border-radius:999px; padding:9px 13px; background:#0b1217; color:#b8d8cc; font:inherit; font-size:11px; cursor:pointer; }
 .icebreaker:hover { border-color:#2ee59d88; color:var(--accent); transform:translateY(-1px); }
 .thinking { display:flex; align-items:center; gap:10px; color:#9ab9ad; }
+.reply-status { margin:.75em 0 0; color:#9ab9ad; font-size:.9em; }
 .thinking-dots span { display:inline-block; width:5px; height:5px; margin:0 2px; border-radius:50%; background:var(--accent); animation:thinking 1s infinite ease-in-out; }
 .thinking-dots span:nth-child(2) { animation-delay:.15s; }
 .thinking-dots span:nth-child(3) { animation-delay:.3s; }
@@ -521,7 +522,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.12</small>
+      <small class="app-version" title="Versão da JOIA">v1.13</small>
     </header>
 
     <section id="output" class="output">
@@ -621,6 +622,7 @@ async function readJoiaStream(body, onUpdate){
   const decoder = new TextDecoder();
   let pending = "";
   let completed = false;
+  let paragraphMode = false;
   try {
     while(true){
       const {value, done} = await reader.read();
@@ -632,7 +634,8 @@ async function readJoiaStream(body, onUpdate){
         pending = pending.slice(newline + 1);
         if(!line.trim()) continue;
         const event = JSON.parse(line);
-        if(event.type === "delta" || event.type === "retry") onUpdate(event);
+        if(event.type === "start") paragraphMode = event.mode === "paragraphs";
+        if(paragraphMode && (event.type === "delta" || event.type === "retry")) onUpdate(event);
         if(event.type === "error") throw new Error(event.erro);
         if(event.type === "done"){
           completed = true;
@@ -789,15 +792,17 @@ function showThinking(){
   const div = document.createElement("div");
   div.className = "msg joia thinking";
   div.id = "thinking";
-  div.innerHTML = '<b>JOIA:</b> Pensando igual Profe João <span class="thinking-dots"><span></span><span></span><span></span></span>';
+  div.innerHTML = '<b>JOIA:</b> <span role="status">Pensando igual Profe João</span><span class="thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>';
   output.appendChild(div);
+  return div;
 }
 
-function renderReply(text, downloadUrl = "", preview = null){
+function renderReply(text, downloadUrl = "", streamedReply = null){
   document.getElementById("thinking")?.remove();
-  const div = preview ?? renderMessage(text, "joia");
-  if(preview) div.querySelector(".joia-markdown").replaceWith(renderJoiaMarkdown(text));
-  div.querySelector(".joia-markdown").classList.add("new-reply");
+  const div = streamedReply ?? renderMessage(text, "joia");
+  const content = div.querySelector(".joia-markdown");
+  if(streamedReply) content.classList.remove("joia-stream-preview");
+  else content.classList.add("new-reply");
   lastJoiaAnswer = text;
   if(downloadUrl){
     const link = document.createElement("a");
@@ -891,36 +896,46 @@ async function sendMsg(){
   accessStatus.textContent = "";
   userInput.value = "";
   userInput.disabled = true;
-  showThinking();
-  let preview = null;
-  let previewText = "";
+  const thinking = showThinking();
+  const replyStatus = document.createElement("p");
+  replyStatus.className = "reply-status";
+  replyStatus.setAttribute("role", "status");
+  let streamedReply = null;
+  let streamedContent = null;
+  let hasReplyIcon = false;
   try {
     const data = await requestJoia({mensagem: msg}, event => {
       if(event.type === "retry"){
-        previewText = "";
-        const pending = preview?.querySelector(".joia-markdown") ?? document.getElementById("thinking");
-        if(pending) pending.textContent = "Ajustando a explicação…";
+        const status = streamedReply ? replyStatus : thinking.querySelector('[role="status"]');
+        status.textContent = "Ajustando os próximos passos…";
+        if(streamedReply) streamedReply.append(status);
         return;
       }
-      if(!preview){
-        document.getElementById("thinking")?.remove();
+      replyStatus.remove();
+      if(!streamedReply){
+        thinking.remove();
         renderMessage(msg, "user");
-        preview = renderMessage("", "joia");
+        streamedReply = renderMessage("", "joia");
+        streamedContent = streamedReply.querySelector(".joia-markdown");
+        streamedContent.classList.add("joia-stream-preview");
       }
-      previewText += event.text;
-      const fragment = renderJoiaMarkdown(previewText, {addTipIcon: false});
-      fragment.classList.add("joia-stream-preview");
-      preview.querySelector(".joia-markdown").replaceWith(fragment);
+      const fragment = renderJoiaMarkdown(event.text, {addTipIcon: !hasReplyIcon});
+      hasReplyIcon ||= /\p{Extended_Pictographic}/u.test(fragment.textContent);
+      streamedContent.append(...fragment.childNodes);
     });
-    if(!preview && !adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
+    replyStatus.remove();
+    if(!streamedReply && !adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
-    renderReply(data.resposta, data.download || "", preview);
+    renderReply(data.resposta, data.download || "", streamedReply);
     if(data.codigo) enterStudent(data);
   } catch (error) {
-    preview?.remove();
-    document.getElementById("thinking")?.remove();
-    if(atEntry) accessStatus.textContent = error.message;
+    thinking.remove();
+    if(streamedReply){
+      streamedContent.classList.remove("joia-stream-preview");
+      replyStatus.textContent = `⚠️ Resposta interrompida. ${error.message}`;
+      streamedReply.append(replyStatus);
+    } else if(atEntry) accessStatus.textContent = error.message;
     else renderReply(`⚠️ ${error.message}`);
   } finally {
     enableChat();

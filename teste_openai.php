@@ -292,12 +292,16 @@ function consecutiveCodeRequests(string $message, array $history): int
     return $count;
 }
 
-function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, ?callable $onDelta): string
+function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, string $opening, ?callable $onDelta): string
 {
     $direction = $insistence > 3
         ? 'O aluno pediu código explicitamente mais de três vezes seguidas. Depois de responder à dúvida, explique brevemente por que você orienta sem entregar a solução e inclua naturalmente a frase “O Profe João fica bravo 🤣”.'
-        : 'Comece pela orientação específica que o aluno pediu, sem anunciar recusa ou repetir uma resposta-padrão.';
-    $instruction = 'Reformule a resposta à última pergunta sem fornecer código. '
+        : 'Oriente o aluno sem anunciar recusa ou usar uma resposta-padrão.';
+    $start = $opening === ''
+        ? 'Reformule a resposta à última pergunta sem fornecer código. Comece pela orientação específica que o aluno pediu. '
+        : 'Continue a explicação já exibida ao aluno na última mensagem do assistente. Preserve o sentido do que foi mostrado. '
+          . 'Escreva somente a continuação, em um novo parágrafo, sem repetir o texto anterior, sem saudar e sem fornecer código. ';
+    $instruction = $start
         . 'Use a tentativa e os detalhes já informados na conversa. Diga o que observar ou mudar e em que parte do problema, '
         . 'explique por que isso funciona e dê uma verificação prática ou um exemplo em palavras quando ajudar. '
         . 'Se o aluno já compreendeu um conceito, avance para a aplicação em vez de repetir a definição. '
@@ -308,10 +312,11 @@ function pedagogicalRetry(array $messages, int $insistence, bool $nativeWind, ?c
             . 'e indicar verbalmente em qual componente elas entram. Omita atribuições, JSX e caixas de código.';
     }
     array_splice($messages, -1, 0, [['role' => 'system', 'content' => $instruction]]);
+    if ($opening !== '') $messages[] = ['role' => 'assistant', 'content' => rtrim($opening)];
     return callOpenAI($messages, 420, onDelta: $onDelta);
 }
 
-function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages, ?Closure $beginRetry = null): string
+function enforcePedagogicalCodeLimit(string $answer, array $history, string $message, array $messages, ?JoiaAnswerStream $stream = null): string
 {
     $codeLines = codeLineCount($answer);
     $nativeWind = isNativeWindTopic($message, $history);
@@ -321,23 +326,27 @@ function enforcePedagogicalCodeLimit(string $answer, array $history, string $mes
     }
 
     $insistence = consecutiveCodeRequests($message, $history);
-    $retry = pedagogicalRetry($messages, $insistence, $nativeWind, $beginRetry ? $beginRetry() : null);
+    $opening = $stream?->published() ?? '';
+    $stream?->beginRetry();
+    $retry = pedagogicalRetry($messages, $insistence, $nativeWind, $opening, $stream ? [$stream, 'append'] : null);
+    $retry = withoutRepeatedJoiaOpening($retry, $opening);
+    if ($retry === '' && $opening !== '') return rtrim($opening);
     $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
-    if ($prose !== '' && codeLineCount($prose) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($prose, 0, false))) {
-        return $prose;
+    $combined = $opening . $prose;
+    if ($prose !== '' && codeLineCount($combined) === 0 && (!$nativeWind || nativeWindCodeIsAllowed($combined, 0, false))) {
+        return $combined;
     }
+    $published = $stream?->published() ?? '';
     if ($nativeWind) {
-        return 'Separe o efeito que você quer no contêiner do efeito em cada filho. '
+        return $published . 'Separe o efeito que você quer no contêiner do efeito em cada filho. '
             . 'Para alinhar um grupo, observe a direção do contêiner que reúne esse grupo. '
             . 'Para mudar o visual de um único elemento, verifique o estilo desse elemento. '
             . 'Teste uma mudança de cada vez e confira qual região da tela foi afetada.';
     }
 
-    $topic = trim(preg_replace('/\s+/', ' ', $message) ?? $message);
-    $topic = function_exists('mb_substr') ? mb_substr($topic, 0, 120, 'UTF-8') : substr($topic, 0, 120);
-    return $insistence > 3
-        ? "O Profe João fica bravo 🤣 se eu montar tudo por você. Pensando em “{$topic}”, qual entrada e qual resultado você definiria primeiro?"
-        : "Pensando especificamente em “{$topic}”, qual entrada você já possui e qual resultado precisa obter antes de escolher a implementação?";
+    $guidance = 'Isole o ponto em que o comportamento difere do esperado. '
+        . 'Teste com um caso pequeno e compare o que você esperava observar com o que de fato aconteceu.';
+    return $published . ($insistence > 3 ? 'O Profe João fica bravo 🤣 se eu montar tudo por você. ' : '') . $guidance;
 }
 
 function conversation(string $id): array
@@ -701,13 +710,16 @@ try {
         array_splice($draftMessages, -1, 0, [['role' => 'system', 'content' => 'Se o aluno demonstrou entender o estilo e só precisa lembrar como aplicar a classe de NativeWind, mostre a aplicação em um bloco Markdown jsx de uma linha, somente com o atributo className e até três utilidades. Explique o efeito de cada classe. Use a caixa mesmo quando já citou as classes no texto, se ela esclarecer a aplicação.']]);
     }
     $streaming = trim($_SERVER['HTTP_ACCEPT'] ?? '') === JOIA_STREAM_TYPE;
-    if ($streaming) startJoiaStream();
-    $draft = callOpenAI($draftMessages, onDelta: $streaming ? joiaProsePreview() : null);
-    $beginRetry = $streaming ? static function (): Closure {
-        sendJoiaStreamEvent('retry');
-        return joiaProsePreview();
-    } : null;
-    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $beginRetry);
+    $stream = $streaming ? new JoiaAnswerStream() : null;
+    if ($stream) {
+        startJoiaStream();
+        array_splice($draftMessages, -1, 0, [['role' => 'system', 'content' =>
+            'Comece com um parágrafo curto que já esclareça algo concreto da dúvida em palavras. '
+            . 'Separe-o do próximo parágrafo com uma linha em branco. Evite elogio sozinho, promessas de exemplo e chamadas para um trecho abaixo.']]);
+    }
+    $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null);
+    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream);
+    $remaining = $stream?->remaining($answer);
     updateMemory($state['student_id'], static function (array $item) use ($message, $answer): array {
         $now = gmdate('c');
         $item['history'][] = ['role' => 'user', 'content' => $message, 'timestamp' => $now];
@@ -715,8 +727,12 @@ try {
         return $item;
     });
     $payload = ['resposta' => $answer, 'etapa' => 'conversation'];
-    if ($streaming) sendJoiaStreamEvent('done', $payload);
-    else respond($payload);
+    if ($stream) {
+        if ($remaining !== '') sendJoiaStreamEvent('delta', ['text' => $remaining]);
+        sendJoiaStreamEvent('done', $payload);
+    } else {
+        respond($payload);
+    }
 } catch (Throwable $error) {
     error_log('JOIA: ' . $error->getMessage());
     if ($streaming) sendJoiaStreamEvent('error', ['erro' => 'A resposta não foi concluída. Envie a mensagem novamente.']);

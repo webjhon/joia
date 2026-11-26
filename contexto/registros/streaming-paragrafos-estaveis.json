@@ -1,0 +1,12 @@
+{
+  "titulo": "Parágrafos estáveis durante o streaming do chat",
+  "situacao": "aprovada",
+  "fonte": "Pedido na conversa da JOIA no Codex",
+  "termos": ["streaming", "NDJSON", "chat", "parágrafo", "reformulação", "interrupção", "Markdown"],
+  "pedidos": ["Fazer o chat acumular e exibir trechos úteis sem alterar retroativamente o texto que o aluno já conseguiu ler."],
+  "decisoes": [
+    "Acrescentar parágrafos autônomos conforme chegam e preservar os blocos já exibidos durante uma reformulação.",
+    "Sinalizar ajustes e interrupções separadamente do texto da resposta. Manter a resposta integral para histórico e leitura em voz alta.",
+    "A reformulação gradual registrada em orientacao-concreta-e-streaming.json passa a complementar os parágrafos já exibidos."
+  ]
+}

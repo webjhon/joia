@@ -20,7 +20,7 @@ function appendJoiaInline(parent, text, allowEmphasis = true){
   parent.append(text.slice(offset));
 }
 
-function renderJoiaMarkdown(text){
+function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
   const content = document.createElement("div");
   content.className = "joia-markdown";
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
@@ -28,7 +28,7 @@ function renderJoiaMarkdown(text){
   const headingPattern = /^#{1,6}\s+(.+)$/;
   let hasEmoji = /\p{Extended_Pictographic}/u.test(text);
   function withTipIcon(line, heading = false){
-    if(hasEmoji) return line;
+    if(!addTipIcon || hasEmoji) return line;
     const label = line.match(/^\s*(?:\*\*)?(dica|atenção|cuidado)(?=\*\*|\s*:|$)/i);
     if(!label || (!heading && !/^\s*(?:\*\*)?(?:dica|atenção|cuidado)(?:\*\*)?\s*:/i.test(line))) return line;
     hasEmoji = true;

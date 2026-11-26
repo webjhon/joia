@@ -249,7 +249,6 @@ button, input, textarea { font-family: inherit; }
   line-height: 1.65;
   max-width: 68ch;
 }
-.joia-stream-preview { white-space: pre-wrap; }
 .joia-markdown > * { margin: 0 0 .8em; }
 .joia-markdown > :last-child { margin-bottom: 0; }
 .joia-markdown h3 { color: #a7efd4; font-size: 1.08em; line-height: 1.35; }
@@ -583,7 +582,7 @@ button, input, textarea { font-family: inherit; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
-<script src="./assets/chat/markdown.js?v=1.10"></script>
+<script src="./assets/chat/markdown.js?v=1.11"></script>
 <script>
 window.lucide?.createIcons();
 
@@ -894,19 +893,18 @@ async function sendMsg(){
   userInput.disabled = true;
   showThinking();
   let preview = null;
-  let previewText;
+  let previewText = "";
   try {
     const data = await requestJoia({mensagem: msg}, delta => {
       if(!preview){
         document.getElementById("thinking")?.remove();
         renderMessage(msg, "user");
         preview = renderMessage("", "joia");
-        const content = preview.querySelector(".joia-markdown");
-        content.classList.add("joia-stream-preview");
-        previewText = document.createTextNode("");
-        content.append(previewText);
       }
-      previewText.appendData(delta);
+      previewText += delta;
+      const fragment = renderJoiaMarkdown(previewText, {addTipIcon: false});
+      fragment.classList.add("joia-stream-preview");
+      preview.querySelector(".joia-markdown").replaceWith(fragment);
     });
     if(!preview && !adminTokenPending && data.etapa !== "admin_token") renderMessage(msg, "user");
     document.getElementById("welcome")?.remove();

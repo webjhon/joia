@@ -143,7 +143,8 @@ do aluno após o acesso.
 ## Respostas progressivas
 
 No chat do aluno, o PHP recebe o stream da OpenAI e repassa os trechos de
-texto em eventos NDJSON antes de a geração terminar. Trechos com sinais de
+texto em eventos NDJSON antes de a geração terminar. A prévia mantém a
+formatação de prosa e de nomes de classes. Caixas e trechos com sinais de
 código aguardam a validação pedagógica. A resposta final, formatada e validada,
 é a que fica no histórico. Cadastro, relatórios, anotações e clientes que pedem
 JSON continuam usando respostas completas.

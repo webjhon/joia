@@ -25,6 +25,7 @@ function readJoiaOpenAIStream(CurlHandle $request, callable $onDelta): string
     $answer = '';
     $done = false;
     curl_setopt($request, CURLOPT_WRITEFUNCTION, static function (CurlHandle $handle, string $chunk) use (&$buffer, &$answer, &$done, $onDelta): int {
+        if ($done) return strlen($chunk);
         $buffer .= $chunk;
         while (($newline = strpos($buffer, "\n")) !== false) {
             $line = rtrim(substr($buffer, 0, $newline), "\r");
@@ -60,11 +61,12 @@ function joiaProsePreview(): Closure
         if ($hold) return;
         $pending .= $delta;
         $preview = '';
-        // Wait for punctuation or a line break so a partial code token never
-        // becomes a candidate for the provisional preview.
-        while (preg_match('/^.*?(?:\r?\n|[.!?](?=[ \t]))/us', $pending, $segment)) {
+        // Finish a phrase or line before showing it. A single inline name
+        // is safe to quote, but code fences and executable syntax wait.
+        while (preg_match('/^.*?(?:\r?\n|[,.!?](?=[ \t]))/us', $pending, $segment)) {
             $text = $segment[0];
-            if (preg_match('/[`~<>{}=;\\\\]|(?:\w+|\])\s*\(/u', $text) || codeLineCount($text) > 0) {
+            $prose = preg_replace('/(?<!`)`[\p{L}\p{N}_:-]{1,48}`(?!`)/u', 'termo', $text);
+            if ($prose === null || preg_match('/[`~<>{}=;\\\\]|(?:\w+|\])\s*\(/u', $prose) || codeLineCount($prose) > 0) {
                 $hold = true;
                 break;
             }

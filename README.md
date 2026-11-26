@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.7**
+> **Versão atual: 1.8**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -118,3 +118,24 @@ e percorre apenas os vetores do aluno. Se a busca não encontrar resultados
 ou o serviço estiver indisponível, o chat usa a janela padrão de 12
 mensagens. O armazenamento dos vetores é derivado e pode ser recriado a
 partir do histórico. A busca usa o cadastro já associado à sessão do chat.
+
+## Código de acesso e caderno
+
+No primeiro cadastro, guarde o código exibido pela JOIA. Em outro dispositivo,
+use **Já tenho um código** para retomar as conversas e o caderno. O código dá
+acesso aos dois e deve ser mantido em segredo. Em computadores compartilhados,
+encerre o acesso ao terminar.
+
+A memória dos alunos fica em `joia-memoria`, ao lado da raiz pública do servidor.
+Para usar outro diretório privado e gravável pelo PHP, configure
+`JOIA_MEMORY_DIR`. A hospedagem deve usar HTTPS. Na atualização, mova os arquivos
+legados `memoria/aluno_*.json` para o diretório privado, preservando os nomes.
+O Apache 2.4 também recebe uma regra que bloqueia o acesso HTTP à pasta legada.
+Em outros servidores, remova os arquivos legados da raiz pública ao migrar;
+o servidor embutido do PHP ignora regras `.htaccess`.
+
+Um cadastro antigo ainda associado à sessão recebe um código ao abrir a JOIA.
+Registros antigos sem uma sessão associada precisam de um processo de
+recuperação que confirme a identidade do aluno. O caderno da versão anterior
+pode ser baixado na tela de entrada do mesmo navegador e copiado para o caderno
+do aluno após o acesso.

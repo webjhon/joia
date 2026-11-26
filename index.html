@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.7. -->
-<meta name="application-version" content="1.7" />
+<!-- Versão 1.8. -->
+<meta name="application-version" content="1.8" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -270,6 +270,12 @@ button, input, textarea { font-family: inherit; }
 .welcome { max-width:760px; margin:6vh auto 0; text-align:center; }
 .welcome-mark { font-size:42px; margin-bottom:8px; }
 .welcome h1 { color:#8cf0d3; font-size:24px; margin:0 0 10px; }
+.access-form { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.access-form[hidden] { display:none; }
+.access-form input { max-width:100%; padding:8px; color:var(--txt); background:#081015; border:1px solid var(--border); border-radius:8px; }
+.access-status { color:#f3bd88; }
+.access-code { margin:12px 0; }
+.access-code code { display:block; overflow-wrap:anywhere; margin:8px 0; user-select:all; }
 .welcome p { color:#9ab9ad; line-height:1.65; }
 .icebreakers { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:20px; }
 .icebreaker { border:1px solid #2ee59d38; border-radius:999px; padding:9px 13px; background:#0b1217; color:#b8d8cc; font:inherit; font-size:11px; cursor:pointer; }
@@ -470,7 +476,7 @@ button, input, textarea { font-family: inherit; }
     <button class="side-btn" id="newConversation" title="Nova conversa" aria-label="Nova conversa">↻</button>
     <div class="side-spacer"></div>
     <button class="side-btn" id="clearNotes" title="Limpar anotações" aria-label="Limpar anotações">⌫</button>
-    <small class="app-version" title="Versão da JOIA">v1.7</small>
+    <small class="app-version" title="Versão da JOIA">v1.8</small>
   </aside>
 
   <main class="terminal">
@@ -482,18 +488,31 @@ button, input, textarea { font-family: inherit; }
     <section id="output" class="output">
       <div class="welcome" id="welcome">
         <div class="welcome-mark">💎</div><h1>JOIA</h1>
-        <p>Sua parceira para aprender tecnologia com perguntas, pistas e descobertas.<br>Comece do seu jeito — nenhuma pergunta foi escolhida por você.</p>
-        <div class="icebreakers" aria-label="Sugestões para começar">
-          <button class="icebreaker">Quero entender um conceito</button><button class="icebreaker">Estou travado em um exercício</button>
-          <button class="icebreaker">Quero organizar meus estudos</button><button class="icebreaker">Pode me fazer um desafio?</button>
+        <p>É seu primeiro acesso ou você já tem um código?</p>
+        <div class="icebreakers" aria-label="Opções de acesso">
+          <button class="icebreaker" id="startStudent">NOVO USUÁRIO</button>
+          <button class="icebreaker" id="showCode">JÁ TENHO UM CÓDIGO</button>
         </div>
+        <form class="access-form" id="codeForm" hidden>
+          <input id="studentCode" type="password" aria-label="Código de acesso" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+          <button class="action-btn" type="submit">Entrar</button>
+        </form>
+        <p class="access-status" id="accessStatus" role="status"></p>
+        <button class="action-btn" id="teacherAccess">Área docente</button>
+        <button class="action-btn" id="downloadLegacyNotes" hidden>Baixar anotações antigas deste dispositivo</button>
       </div>
     </section>
+    <template id="studySuggestions">
+      <div class="icebreakers" aria-label="Sugestões para começar">
+        <button class="icebreaker">Quero entender um conceito</button><button class="icebreaker">Estou travado em um exercício</button>
+        <button class="icebreaker">Quero organizar meus estudos</button><button class="icebreaker">Pode me fazer um desafio?</button>
+      </div>
+    </template>
 
     <footer class="terminal-footer">
       <div class="input-wrap">
         <span class="prompt">>_</span>
-        <input id="userInput" type="text" placeholder="Digite aqui e pressione Enter..." autocomplete="off" />
+        <input id="userInput" disabled type="text" placeholder="Digite aqui e pressione Enter..." autocomplete="off" />
       </div>
     </footer>
   </main>
@@ -502,7 +521,7 @@ button, input, textarea { font-family: inherit; }
 <section class="notes-panel" id="notesPanel" aria-label="Caderno de anotações">
   <div class="notes-header"><b>📝 Meu caderno JOIA</b><button class="action-btn" id="closeNotes">Fechar</button></div>
   <textarea id="notesInput" placeholder="Registre conceitos, dúvidas, exemplos e próximos passos..."></textarea>
-  <div class="notes-actions"><span class="save-status" id="saveStatus">Salvo automaticamente neste dispositivo</span><button class="action-btn" id="saveNotes">Salvar agora</button></div>
+  <div class="notes-actions"><span class="save-status" id="saveStatus" role="status"></span><button class="action-btn" id="saveNotes">Salvar agora</button></div>
 </section>
 
 <section class="avatar-panel" id="avatarPanel" aria-label="Avatar e voz da JOIA" aria-hidden="true">
@@ -545,7 +564,112 @@ let lastJoiaAnswer = "";
 let head = null;
 let avatarLoading = false;
 let joiaVoice = null;
-notesInput.value = localStorage.getItem("joia_notes") || "";
+let restoringEntry = true;
+let studentActive = false;
+let notesRevision = 0;
+let savedNotes = "";
+let notesTimer;
+let notesSave = Promise.resolve(true);
+const accessStatus = document.getElementById("accessStatus");
+const codeForm = document.getElementById("codeForm");
+const codeInput = document.getElementById("studentCode");
+
+async function requestJoia(payload){
+  const res = await fetch(apiUrl, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({...payload, conversation_id: conversationId})
+  });
+  const data = await res.json().catch(() => null);
+  if(!data) throw new Error(`Resposta inválida do servidor (HTTP ${res.status}).`);
+  if(!res.ok) throw new Error(data.erro || data.resposta || "Não foi possível acessar a JOIA.");
+  return data;
+}
+
+function enableChat(){
+  userInput.disabled = false;
+  userInput.focus();
+}
+
+function showIssuedCode(code){
+  const panel = document.createElement("div");
+  panel.className = "msg joia access-code";
+  const codeText = document.createElement("code");
+  codeText.textContent = code;
+  const copy = document.createElement("button");
+  copy.className = "action-btn";
+  copy.textContent = "Copiar código";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      copy.textContent = "Código copiado";
+    } catch {
+      copy.textContent = "Selecione e copie o código acima";
+    }
+  });
+  panel.append("Guarde este código em um local seguro. Ele dá acesso ao seu histórico e às suas anotações.", codeText, copy);
+  output.appendChild(panel);
+  focusMessage(panel);
+}
+
+function enterStudent(data){
+  studentActive = true;
+  notesInput.value = savedNotes = data.anotacoes;
+  notesRevision = data.revisao;
+  saveStatus.textContent = "Caderno sincronizado";
+  document.getElementById("welcome")?.remove();
+  for(const item of data.historico){
+    if(item.role === "user" || item.role === "assistant"){
+      renderMessage(item.content, item.role === "user" ? "user" : "joia", false);
+      if(item.role === "assistant") lastJoiaAnswer = item.content;
+    }
+  }
+  if(data.codigo) showIssuedCode(data.codigo);
+  if(!data.historico.length){
+    const suggestions = document.getElementById("studySuggestions").content.firstElementChild.cloneNode(true);
+    suggestions.id = "activeSuggestions";
+    suggestions.addEventListener("click", event => {
+      if(event.target instanceof HTMLButtonElement){
+        userInput.value = event.target.textContent;
+        userInput.focus();
+      }
+    });
+    output.appendChild(suggestions);
+  }
+}
+
+function showEntryState(data){
+  if(data.etapa === "entrada") return;
+  if(data.etapa === "conversation"){
+    enterStudent(data);
+    if(!data.codigo) renderMessage("Bem-vindo de volta. Podemos continuar de onde você parou.", "joia");
+  } else {
+    const prompts = {
+      welcome: "Olá! Como posso te chamar?",
+      name: "Qual é sua turma, curso, ano ou período?",
+      class: "Qual é sua instituição, escola ou unidade?"
+    };
+    renderMessage(data.cadastro ? prompts[data.etapa] : "Digite iProgram.ger para acessar a área docente.", "joia");
+  }
+  enableChat();
+}
+
+async function runEntry(payload, button){
+  if(restoringEntry || document.querySelector("#welcome button:disabled")) return;
+  const buttons = [...document.querySelectorAll("#welcome button")];
+  buttons.forEach(item => item.disabled = true);
+  accessStatus.textContent = "";
+  try {
+    const data = await requestJoia(payload);
+    codeInput.value = "";
+    showEntryState({...data, cadastro: payload.acao === "novo" || data.cadastro});
+  } catch(error) {
+    accessStatus.textContent = error.message;
+    button?.focus();
+  } finally {
+    buttons.forEach(item => item.disabled = false);
+  }
+}
 avatarEnabled.checked = localStorage.getItem("joia_avatar_enabled") === "true";
 autoSpeak.checked = localStorage.getItem("joia_auto_speak") === "true";
 
@@ -555,7 +679,7 @@ function focusMessage(element){
   requestAnimationFrame(() => element.scrollIntoView({block:"start", behavior:"smooth"}));
 }
 
-function renderMessage(text, sender){
+function renderMessage(text, sender, scroll = true){
   document.getElementById("welcome")?.remove();
   output.classList.add("conversation");
   const div = document.createElement("div");
@@ -566,7 +690,7 @@ function renderMessage(text, sender){
   div.appendChild(document.createTextNode(text));
   div.style.whiteSpace = "pre-wrap";
   output.appendChild(div);
-  focusMessage(div);
+  if(scroll) focusMessage(div);
   return div;
 }
 
@@ -676,26 +800,20 @@ async function loadAvatar(){
 async function sendMsg(){
   const msg = userInput.value.trim();
   if(!msg) return;
+  if(/^[a-f0-9]{32}-[a-f0-9]{32}$/i.test(msg)){
+    userInput.value = "";
+    renderMessage("Use o código apenas na opção Já tenho um código.", "joia");
+    return;
+  }
+  document.getElementById("activeSuggestions")?.remove();
   renderMessage(msg, "user");
   userInput.value = "";
   userInput.disabled = true;
   showThinking();
   try {
-    const res = await fetch(apiUrl,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mensagem:msg, conversation_id:conversationId})
-    });
-    const responseText = await res.text();
-    let data;
-    try {
-      data = responseText ? JSON.parse(responseText) : null;
-    } catch {
-      throw new Error(`O servidor retornou uma resposta inválida (HTTP ${res.status}). Verifique o log de erros do PHP.`);
-    }
-    if (!data) throw new Error(`O servidor não retornou conteúdo (HTTP ${res.status}). Verifique o log de erros do PHP.`);
-    if (!res.ok) throw new Error(data.erro || data.resposta || "Não foi possível conversar com a JOIA.");
+    const data = await requestJoia({mensagem: msg});
     await renderTypedMessage(data.resposta, data.download || "");
+    if(data.codigo) enterStudent(data);
   } catch (error) {
     document.getElementById("thinking")?.remove();
     await renderTypedMessage(`⚠️ ${error.message}`);
@@ -706,12 +824,35 @@ async function sendMsg(){
 }
 
 function saveNotes(){
-  localStorage.setItem("joia_notes", notesInput.value);
-  saveStatus.textContent = "Anotações salvas agora ✓";
-  setTimeout(() => saveStatus.textContent = "Salvo automaticamente neste dispositivo", 1800);
+  clearTimeout(notesTimer);
+  if(!studentActive) return Promise.resolve(false);
+  notesSave = notesSave.then(async () => {
+    const text = notesInput.value;
+    if(text === savedNotes) return true;
+    saveStatus.textContent = "Salvando…";
+    try {
+      const data = await requestJoia({acao: "salvar_anotacoes", anotacoes: text, revisao: notesRevision});
+      notesRevision = data.revisao;
+      savedNotes = text;
+      saveStatus.textContent = "Anotações salvas ✓";
+      return true;
+    } catch(error) {
+      saveStatus.textContent = error.message;
+      return false;
+    }
+  });
+  return notesSave;
 }
 
-document.getElementById("openNotes").addEventListener("click", () => { notesPanel.classList.add("open"); notesInput.focus(); });
+function requireStudent(){
+  if(studentActive) return true;
+  alert("Entre como aluno para usar seu caderno.");
+  return false;
+}
+
+document.getElementById("openNotes").addEventListener("click", () => {
+  if(requireStudent()){ notesPanel.classList.add("open"); notesInput.focus(); }
+});
 document.getElementById("closeNotes").addEventListener("click", () => notesPanel.classList.remove("open"));
 document.getElementById("openAvatar").addEventListener("click", () => {
   avatarPanel.classList.add("open");
@@ -736,30 +877,71 @@ document.getElementById("speakLast").addEventListener("click", () => {
 document.getElementById("stopSpeaking").addEventListener("click", () => { window.speechSynthesis?.cancel(); animateMouth(false); avatarStatus.textContent = "Leitura interrompida"; });
 if('speechSynthesis' in window){ selectJoiaVoice(); speechSynthesis.onvoiceschanged = selectJoiaVoice; }
 document.getElementById("saveNotes").addEventListener("click", saveNotes);
-notesInput.addEventListener("input", saveNotes);
+notesInput.addEventListener("input", () => {
+  clearTimeout(notesTimer);
+  saveStatus.textContent = "Alterações pendentes…";
+  notesTimer = setTimeout(saveNotes, 600);
+});
+window.addEventListener("beforeunload", event => {
+  if(studentActive && notesInput.value !== savedNotes){
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
 document.getElementById("copyLast").addEventListener("click", () => {
+  if(!requireStudent()) return;
   if(!lastJoiaAnswer) return alert("Converse com a JOIA antes de anotar uma resposta.");
   notesInput.value += `${notesInput.value ? "\n\n" : ""}💎 Resposta da JOIA\n${lastJoiaAnswer}`;
   saveNotes(); notesPanel.classList.add("open");
 });
-document.getElementById("downloadNotes").addEventListener("click", () => {
-  if(!notesInput.value.trim()) return alert("Seu caderno ainda está vazio.");
+function downloadNotes(text){
+  if(!text.trim()) return alert("Seu caderno ainda está vazio.");
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([notesInput.value], {type:"text/plain;charset=utf-8"}));
+  link.href = URL.createObjectURL(new Blob([text], {type:"text/plain;charset=utf-8"}));
   link.download = "anotacoes-joia.txt"; link.click(); URL.revokeObjectURL(link.href);
+}
+
+document.getElementById("downloadNotes").addEventListener("click", () => {
+  if(requireStudent()) downloadNotes(notesInput.value);
 });
 document.getElementById("clearNotes").addEventListener("click", () => {
-  if(confirm("Deseja apagar todas as anotações deste dispositivo?")){ notesInput.value = ""; saveNotes(); }
-});
-document.getElementById("newConversation").addEventListener("click", () => {
-  if(confirm("Iniciar uma nova conversa e um novo cadastro?")){
-    fetch(apiUrl, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({acao:"reset", conversation_id:conversationId})})
-      .finally(() => { sessionStorage.removeItem("joia_conversation_id"); location.reload(); });
+  if(requireStudent() && confirm("Deseja apagar todas as anotações deste cadastro?")){
+    notesInput.value = "";
+    saveNotes();
   }
 });
-document.querySelectorAll(".icebreaker").forEach(button => button.addEventListener("click", () => {
-  userInput.value = button.textContent; userInput.focus();
-}));
+document.getElementById("newConversation").addEventListener("click", async () => {
+  if(!confirm("Encerrar este acesso? Seu histórico permanece salvo.")) return;
+  if(studentActive && !(await saveNotes())){ notesPanel.classList.add("open"); return; }
+  try {
+    await requestJoia({acao: "reset"});
+    sessionStorage.removeItem("joia_conversation_id");
+    location.reload();
+  } catch(error) {
+    alert(error.message);
+  }
+});
+document.getElementById("startStudent").addEventListener("click", event => runEntry({acao: "novo"}, event.currentTarget));
+document.getElementById("teacherAccess").addEventListener("click", event => runEntry({acao: "docente"}, event.currentTarget));
+document.getElementById("showCode").addEventListener("click", () => {
+  codeForm.hidden = false;
+  codeInput.focus();
+});
+codeForm.addEventListener("submit", event => {
+  event.preventDefault();
+  runEntry({acao: "retomar", codigo: codeInput.value.trim()}, codeInput);
+});
+
+const oldNotes = localStorage.getItem("joia_notes");
+if(oldNotes?.trim()){
+  const exportOld = document.getElementById("downloadLegacyNotes");
+  exportOld.hidden = false;
+  exportOld.addEventListener("click", () => downloadNotes(oldNotes));
+}
+
+requestJoia({acao: "estado"}).then(showEntryState).catch(error => {
+  accessStatus.textContent = error.message;
+}).finally(() => { restoringEntry = false; });
 
 userInput.addEventListener("keydown", e=>{
   if(e.key==="Enter") sendMsg();

@@ -1,34 +1,90 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Inteligência artificial"><title>Inteligência artificial — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.7</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link " href="frontend.html">Frontend</a><a class="nav-link " href="backend.html">Backend PHP</a><a class="nav-link active" href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link " href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link " href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link " href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
-<section class="page-hero compact"><span class="eyebrow">MODELO E PEDAGOGIA</span><h1>Inteligência artificial</h1><p>Como a JOIA constrói contexto, consulta o modelo e mantém sua proposta educacional.</p></section>
-<section><h2>Modelo utilizado</h2><div class="metrics"><div><b>gpt-4o-mini</b><span>modelo configurado</span></div><div><b>0,35</b><span>temperatura padrão</span></div><div><b>900</b><span>tokens padrão de saída</span></div><div><b>12</b><span>itens recentes de histórico</span></div></div><p>A integração usa Chat Completions. Relatórios aumentam o limite de saída; o cadastro usa respostas menores. O modelo não acessa diretamente arquivos, sessões ou memórias: somente recebe as mensagens preparadas pelo PHP.</p></section>
-<section><h2>Camadas de contexto</h2><ol class="steps"><li><b>Documentos pedagógicos</b><span><code>treinamento.txt</code> e <code>NEGATIVEPROMPTS.TXT</code>.</span></li><li><b>Regra do sistema</b><span>Idioma, identidade e proteção das instruções.</span></li><li><b>Perfil confirmado</b><span>Dados do cadastro para personalizar sem repeti-lo.</span></li><li><b>Histórico recente</b><span>Até 12 itens, preservando papéis de usuário e assistente.</span></li><li><b>Mensagem atual</b><span>A solicitação que deve ser respondida.</span></li></ol><div class="code-example"><div class="code-toolbar"><span>Ordem das mensagens</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>array_unshift($messages, [
-  &#x27;role&#x27; =&gt; &#x27;system&#x27;,
-  &#x27;content&#x27; =&gt; instructionDocuments()
-]);
-$messages[] = [
-  &#x27;role&#x27; =&gt; &#x27;user&#x27;,
-  &#x27;content&#x27; =&gt; $message
-];</code></pre></div></section>
-<section><h2>Treinamento e restrições</h2><p>O treinamento descreve a JOIA como guia: investigar o que o aluno entende, oferecer pistas graduais, variar a abordagem e incentivar reflexão. As restrições complementares impedem comportamentos que contradizem essa proposta.</p><div class="note warning"><b>Conteúdo protegido:</b> esta referência explica a função dos arquivos, mas não publica suas instruções integrais. Revelá-las facilitaria contornar os controles pedagógicos.</div></section>
-<section><h2>Revisão pedagógica automática</h2><p>A resposta não vai diretamente ao navegador. O servidor identifica blocos cercados por crases e linhas com palavras/padrões típicos de programação. Mais de duas linhas, ou novo código logo após código recente, acionam uma segunda consulta sem código.</p><div class="code-example"><div class="code-toolbar"><span>Contagem de blocos</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>if (preg_match_all(&#x27;/```[^
-]*
-(.*?)```/s&#x27;, $answer, $blocks)) {
-  foreach ($blocks[1] as $block) {
-    foreach (preg_split(&#x27;/\R/&#x27;, trim($block)) as $line) {
-      if (trim($line) !== &#x27;&#x27;) $count++;
-    }
-  }
-}</code></pre></div>
-<p>A contagem é uma heurística, não um parser de linguagens. Ela prioriza o objetivo educacional e possui uma resposta local de último recurso caso o modelo desobedeça também na repetição.</p></section>
-<section><h2>Cadastro assistido por IA</h2><p>O PHP decide se um valor é aceitável; a IA apenas formula a pergunta natural da etapa. Isso separa regra de negócio de estilo conversacional. Saudações, perguntas ou frases muito longas não são aceitas como nome.</p><div class="code-example"><div class="code-toolbar"><span>Etapas</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>welcome → nome completo
-name    → turma, curso, ano ou período
-class   → instituição, escola ou unidade
-conversation → conversa educacional</code></pre></div></section>
-<section><h2>Relatório educacional</h2><p>O modelo recebe perfil e conversas e redige seções fixas: identificação, síntese, conhecimentos, lacunas, estratégias, recomendações e próximos passos. A instrução exige diferenciar evidência de inferência e proíbe diagnóstico médico.</p><div class="code-example"><div class="code-toolbar"><span>Entrada do relatório</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$messages[] = [
-  &#x27;role&#x27; =&gt; &#x27;user&#x27;,
-  &#x27;content&#x27; =&gt; json_encode([
-    &#x27;perfil&#x27; =&gt; $student[&#x27;profile&#x27;],
-    &#x27;conversas&#x27; =&gt; $student[&#x27;history&#x27;] ?? []
-  ], JSON_UNESCAPED_UNICODE)
-];
-$report = callOpenAI($messages, 1600);</code></pre></div></section><footer><b>JOIA Docs</b><span>Referência da versão 1.7</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Instruções pedagógicas, recuperação de contexto e limites de código no percurso da pergunta.">
+  <title>Inteligência artificial — JOIA Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
+<header class="wiki-navbar sticky-top border-bottom">
+  <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
+    <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.20</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+  </nav>
+</header>
+<div class="container-xxl">
+  <div class="row g-0">
+    <aside class="col-lg-3 col-xl-2 wiki-sidebar border-end">
+      <div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1" aria-labelledby="menu-title">
+        <div class="offcanvas-header"><h2 class="h5" id="menu-title">JOIA Docs</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div>
+        <div class="offcanvas-body">
+          <nav class="nav flex-column" aria-label="Seções do manual">
+          <span class="nav-heading">DOCUMENTAÇÃO</span>
+          <a class="nav-link" href="index.html">Visão geral</a>
+          <a class="nav-link" href="frontend.html">Frontend</a>
+          <a class="nav-link" href="backend.html">Backend PHP</a>
+          <a class="nav-link active" href="inteligencia-artificial.html" aria-current="page">Inteligência artificial</a>
+          <a class="nav-link" href="dados-relatorios.html">Dados e relatórios</a>
+          <a class="nav-link" href="seguranca-operacao.html">Segurança e operação</a>
+          <a class="nav-link" href="referencia.html">Mapa do projeto</a>
+          </nav>
+        </div>
+      </div>
+    </aside>
+    <main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+    <section class="page-hero compact">
+      <span class="eyebrow">INTELIGÊNCIA ARTIFICIAL</span>
+      <h1>Como a JOIA prepara a resposta</h1>
+      <p>Instruções pedagógicas, recuperação de contexto e limites de código no percurso da pergunta.</p>
+    </section>
+<section id="contexto">
+<h2>Quatro fontes de contexto</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Fonte</th><th scope="col">O que a JOIA utiliza</th><th scope="col">Como decide</th></tr></thead><tbody>
+<tr><td>Conversa recente</td><td>Pergunta, objetivo, tentativa e trechos de código pertinentes.</td><td>Quando a dúvida aponta para código mostrado antes, examina o trecho da conversa antes de buscar uma explicação genérica.</td></tr>
+<tr><td>Referências técnicas locais</td><td>Conceitos curados de programação, React Native, JSX, StyleSheet, NativeWind, Animated e Expo.</td><td>Classifica as entradas localmente por termos da pergunta e do trecho de código. Inclui até duas notas pertinentes no contexto.</td></tr>
+<tr><td>Materiais do professor</td><td>Títulos, termos de localização e objetivos das aulas públicas selecionadas.</td><td>A seleção local relaciona a dúvida à aula. Uma consulta explícita ao catálogo pode receber indicação direta do material.</td></tr>
+<tr><td>Memória individual</td><td>Pares de pergunta e resposta de conversas anteriores do aluno autenticado.</td><td>O RAG adaptativo usa embeddings quando a recuperação pode ajudar e aproveita o índice privado do mesmo aluno.</td></tr>
+</tbody></table></div><p>As instruções de <code>treinamento.txt</code> e <code>NEGATIVEPROMPTS.TXT</code> orientam como usar todo esse contexto. O servidor distingue instruções da aplicação, pergunta do aluno e textos de referência.</p>
+</section>
+<section id="codigo-recente">
+<h2>Código que o aluno acabou de ver</h2>
+<p>Se o aluno pergunta o que significa uma propriedade e seu valor em um exemplo recente, a JOIA procura primeiro a expressão naquele trecho. Quando localiza um caso inequívoco que as regras locais conhecem, explica o efeito no elemento e no contexto da dúvida. Por exemplo, diante de <code>opacity: opacidade</code>, a JOIA pode explicar qual lado identifica a propriedade e qual lado é a variável que fornece seu valor. A comparação com <code>opacity: 0.5</code> num estilo fixo esclarece por que uma variável animada pode alterar a transparência ao longo do tempo.</p>
+<p>A busca examina até 24 mensagens locais de histórico e para ao identificar uma mudança de assunto. Se a pergunta citar um identificador, a seleção favorece a caixa que contém aquele termo. Quando o trecho encontrado segue para o modelo, ele já fornece o contexto da dúvida e dispensa a busca vetorial privada nesse turno. A busca usa o histórico e o acervo técnico local, sem consultar páginas externas em tempo de conversa.</p>
+</section>
+<section id="materiais">
+<h2>Materiais do professor</h2>
+<p>O catálogo em <code>includes/materiais_didaticos.php</code> reúne aulas de Node.js, Expo, primeiras telas, React Native visual, NativeWind, Animated, navegação entre telas e geração de APK. Cada registro serve a um objetivo concreto, como compreender o deslocamento vertical do sapo ou separar pontuação de escala visual.</p>
+<p>Quando o aluno pergunta onde encontrar uma aula, a JOIA procura a entrada no catálogo local. Se houver correspondência, informa em texto simples o título, como localizá-lo e o objetivo pertinente. Um pedido pela lista do catálogo apresenta os títulos disponíveis. Em uma dúvida de implementação, pode usar até dois materiais no contexto do chat. A resposta continua orientando o aluno e conserva os limites sobre exercícios e código.</p>
+</section>
+<section id="rag">
+<h2>Memória vetorial do estudante</h2>
+<p>Com <code>JOIA_VECTOR_DIR</code> configurado, a JOIA calcula embeddings da pergunta quando a recuperação é indicada. Os vetores ficam organizados por estudante e modelo em SQLite. A seleção por similaridade de cosseno retorna até duas trocas antigas pertinentes. Se houver correspondências, o chat as combina com quatro mensagens recentes. Sem correspondências, com índice indisponível ou quando a busca é dispensada, mantém até doze mensagens recentes.</p>
+<p>O índice reaproveita vetores já calculados e acrescenta perguntas em lotes limitados. O texto das perguntas consultadas segue para a API de embeddings. Conversas, relatórios e anotações permanecem sob as regras de dados privados. O acervo técnico e o catálogo de aulas são independentes desse índice.</p>
+</section>
+<section id="pedagogia">
+<h2>Estratégia pedagógica e exemplos</h2>
+<ul><li>Comece pela orientação que resolve a dúvida, explique o motivo e dê ao aluno um passo que possa verificar.</li>
+<li>Quando nada está falhando e o aluno quer começar, ofereça um ponto de partida. Faça uma pergunta curta somente se faltar uma informação que mude a orientação.</li>
+<li>Se for essencial ao objetivo, a JOIA pode mostrar uma caixa isolada com até quatro linhas sobre NativeWind, Animated do React Native ou a combinação dos dois. A cota compartilhada é de três caixas por aluno e por dia em <code>America/Sao_Paulo</code>.</li>
+<li>Quando a política não permite código, a JOIA pode explicar classe, propriedade e efeito em palavras. Soluções completas de exercícios ficam fora do fluxo de pistas.</li>
+<li>A revisão separa prosa e código. O servidor salva a resposta final e a cota antes de mostrar a caixa. Se ela não puder ser entregue, o texto conserva a orientação útil.</li></ul>
+<p>O provedor executa a geração textual principal e os embeddings quando necessários. A aplicação reaproveita um prefixo estável de instruções e lê as métricas retornadas pela API. Consulte a <a href="otimizacao-api.md">auditoria de custo e metodologia</a> para as comparações com dados sintéticos.</p>
+</section>
+
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.20</span><a href="dados-relatorios.html">Dados e relatórios →</a></footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark" role="status"><div class="toast-body">Código copiado.</div></div></div>
+<script src="assets/bootstrap.bundle.min.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

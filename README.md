@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.19**
+> **Versão atual: 1.20**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -96,12 +96,17 @@ ajudar estudantes a aprender com mais confiança e autonomia.
 
 </div>
 
+## Manual técnico
+
+O [manual técnico da JOIA](documentacao/index.html) explica o uso do chat,
+a arquitetura, as estratégias de recuperação e a operação.
+
 ## Memória vetorial dos alunos
 
 O chat pode recuperar até duas trocas anteriores relevantes do mesmo cadastro.
 Quando encontra correspondências, envia ao modelo essas trocas, as quatro
 mensagens mais recentes e a pergunta atual. O histórico completo continua no
-JSON do aluno e segue disponível para os relatórios.
+JSON privado do aluno e segue disponível para os relatórios.
 
 Para ativar, habilite as extensões PHP `pdo_sqlite`, `curl` e `mbstring` e
 configure `JOIA_VECTOR_DIR` com o caminho de um diretório privado, gravável
@@ -114,9 +119,8 @@ o texto das perguntas, que pode conter dados digitados pelo aluno.
 
 A JOIA indexa perguntas anteriores em pequenos lotes durante o chat e
 reaproveita os vetores nas próximas buscas. A comparação por cosseno é local
-e percorre apenas os vetores do aluno. Se a busca não encontrar resultados
-ou o serviço estiver indisponível, o chat usa a janela padrão de 12
-mensagens. O armazenamento dos vetores é derivado e pode ser recriado a
+e percorre apenas os vetores do aluno. Se a busca for dispensada, não encontrar resultados ou o serviço estiver
+indisponível, o chat usa a janela padrão de 12 mensagens. O armazenamento dos vetores é derivado e pode ser recriado a
 partir do histórico. A busca usa o cadastro já associado à sessão do chat.
 
 ## Código de acesso e caderno
@@ -145,8 +149,8 @@ do aluno após o acesso.
 
 No chat do aluno, a pergunta permanece visível durante o envio. O PHP confirma
 o recebimento antes de preparar o contexto e recebe o stream da OpenAI. Os
-parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar. O navegador acrescenta
-cada bloco à resposta conforme ele chega. Caixas e trechos com sinais de
+parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar. O
+navegador acrescenta cada bloco à resposta conforme ele chega. Caixas e trechos com sinais de
 código aguardam a validação pedagógica. Se precisar reformular, a JOIA aproveita
 os parágrafos já enviados e transmite a continuação em partes. Se a conexão
 cair no meio, o chat preserva o texto visível e marca a interrupção. O
@@ -176,11 +180,16 @@ resposta são salvas juntas.
 
 [A auditoria técnica e o guia de operação](documentacao/otimizacao-api.md) descrevem as métricas privadas, as opções de configuração e a comparação local.
 
-## Materiais do professor
+## Referências da conversa e materiais do professor
 
-Em dúvidas relacionadas às aulas selecionadas, a JOIA usa até dois resumos
-curtos para seguir a abordagem do professor e sugerir uma leitura. O chat
-mostra apenas o nome do material, sem links ou arquivos. O catálogo fica em
-`includes/materiais_didaticos.php`. Ele pode ser atualizado por PR e não consulta
-sites ou o Notion durante a conversa. A seleção complementa o histórico e as
-regras pedagógicas do chat.
+Quando a dúvida aponta para um trecho de código já mostrado, a JOIA examina
+o próprio trecho e tenta esclarecer o efeito no contexto. Para consultas
+conceituais, o [acervo técnico local](documentacao/inteligencia-artificial.html#contexto)
+ajuda a selecionar explicações pertinentes. Esse acervo complementa a conversa
+recente, os materiais do professor e a memória individual do aluno.
+
+Os materiais do professor usam um catálogo local em
+`includes/materiais_didaticos.php`. Perguntas sobre onde encontrar uma aula
+podem receber o título, orientação de localização e um objetivo para estudo.
+O chat mostra títulos em texto simples e segue as regras pedagógicas sobre
+exercícios, links e arquivos.

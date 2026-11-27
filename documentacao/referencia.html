@@ -1,8 +1,110 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Referência rápida"><title>Referência rápida — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.7</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link " href="frontend.html">Frontend</a><a class="nav-link " href="backend.html">Backend PHP</a><a class="nav-link " href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link " href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link " href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link active" href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
-<section class="page-hero compact"><span class="eyebrow">ÍNDICE TÉCNICO</span><h1>Referência de funções</h1><p>Localização rápida de cada método relevante implementado na JOIA.</p></section>
-<section><h2>Frontend — <code>index.html</code></h2><div class="ref-grid"><a href="frontend.html#conteudo-principal"><code>renderMessage(text, sender)</code><span>Mensagem imediata.</span></a><a href="frontend.html"><code>showThinking()</code><span>Indicador de espera.</span></a><a href="frontend.html"><code>renderTypedMessage(text, url)</code><span>Resposta animada e PDF.</span></a><a href="frontend.html"><code>sendMsg()</code><span>POST e erros.</span></a><a href="frontend.html"><code>saveNotes()</code><span>Persistência do caderno.</span></a><a href="frontend.html"><code>loadAvatar()</code><span>Carregamento 3D opcional e tardio.</span></a><a href="frontend.html"><code>speakText(text)</code><span>Voz brasileira única e animação labial.</span></a></div></section>
-<section><h2>Backend — núcleo</h2><div class="ref-grid"><a href="backend.html"><code>respond()</code><span>JSON e status.</span></a><a href="backend.html"><code>normalize()</code><span>Texto comparável.</span></a><a href="backend.html"><code>instructionDocuments()</code><span>Orientações.</span></a><a href="backend.html"><code>systemPrompt()</code><span>Regra do sistema.</span></a><a href="backend.html"><code>openAIApiKey()</code><span>Configuração.</span></a><a href="backend.html"><code>callOpenAI()</code><span>Cliente HTTP.</span></a></div></section>
-<section><h2>Backend — memória e conversa</h2><div class="ref-grid"><a href="backend.html"><code>memoryDirectory()</code><span>Pasta de dados.</span></a><a href="backend.html"><code>memoryPath()</code><span>Caminho validado.</span></a><a href="backend.html"><code>loadMemory()</code><span>Leitura JSON.</span></a><a href="backend.html"><code>saveMemory()</code><span>Gravação JSON.</span></a><a href="backend.html"><code>conversation()</code><span>Estado da sessão.</span></a><a href="backend.html"><code>storeConversation()</code><span>Atualiza sessão.</span></a><a href="backend.html"><code>onboardingValue()</code><span>Valida cadastro.</span></a><a href="backend.html"><code>onboardingReply()</code><span>Pergunta cadastro.</span></a></div></section>
-<section><h2>Backend — pedagogia</h2><div class="ref-grid"><a href="inteligencia-artificial.html"><code>codeLineCount()</code><span>Conta código.</span></a><a href="inteligencia-artificial.html"><code>recentCodeWasGiven()</code><span>Janela recente.</span></a><a href="inteligencia-artificial.html"><code>isExplicitCodeRequest()</code><span>Reconhece pedido.</span></a><a href="inteligencia-artificial.html"><code>consecutiveCodeRequests()</code><span>Mede insistência.</span></a><a href="inteligencia-artificial.html"><code>pedagogicalRetry()</code><span>Segunda resposta.</span></a><a href="inteligencia-artificial.html"><code>enforcePedagogicalCodeLimit()</code><span>Aplica limite.</span></a></div></section>
-<section><h2>Backend — docente e PDF</h2><div class="ref-grid"><a href="dados-relatorios.html"><code>allStudents()</code><span>Lista alunos.</span></a><a href="dados-relatorios.html"><code>studentTable()</code><span>Tabela Markdown.</span></a><a href="dados-relatorios.html"><code>findStudent()</code><span>Resolve seleção.</span></a><a href="dados-relatorios.html"><code>reportFor()</code><span>Gera análise.</span></a><a href="dados-relatorios.html"><code>pdfText()</code><span>Codificação.</span></a><a href="dados-relatorios.html"><code>pdfEscape()</code><span>Escape PDF.</span></a><a href="dados-relatorios.html"><code>pdfWrap()</code><span>Quebra linhas.</span></a><a href="dados-relatorios.html"><code>pdfBlocks()</code><span>Interpreta texto.</span></a><a href="dados-relatorios.html"><code>buildPdf()</code><span>Documento final.</span></a></div></section>
-<section><h2>Glossário</h2><dl class="glossary"><dt>API</dt><dd>Contrato de comunicação entre navegador e servidor.</dd><dt>Contexto</dt><dd>Mensagens e instruções enviadas ao modelo.</dd><dt>JSON</dt><dd>Formato textual estruturado usado na API e memória.</dd><dt>Prompt</dt><dd>Instrução enviada ao modelo.</dd><dt>Sessão</dt><dd>Estado temporário conservado pelo PHP para aquele navegador.</dd><dt>Token</dt><dd>Unidade de texto processada pelo modelo; em segurança, também pode significar credencial.</dd></dl></section><footer><b>JOIA Docs</b><span>Referência da versão 1.7</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Índice dos arquivos mantidos pela JOIA, separados por responsabilidade e uso.">
+  <title>Mapa do projeto — JOIA Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
+<header class="wiki-navbar sticky-top border-bottom">
+  <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
+    <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.20</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+  </nav>
+</header>
+<div class="container-xxl">
+  <div class="row g-0">
+    <aside class="col-lg-3 col-xl-2 wiki-sidebar border-end">
+      <div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1" aria-labelledby="menu-title">
+        <div class="offcanvas-header"><h2 class="h5" id="menu-title">JOIA Docs</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div>
+        <div class="offcanvas-body">
+          <nav class="nav flex-column" aria-label="Seções do manual">
+          <span class="nav-heading">DOCUMENTAÇÃO</span>
+          <a class="nav-link" href="index.html">Visão geral</a>
+          <a class="nav-link" href="frontend.html">Frontend</a>
+          <a class="nav-link" href="backend.html">Backend PHP</a>
+          <a class="nav-link" href="inteligencia-artificial.html">Inteligência artificial</a>
+          <a class="nav-link" href="dados-relatorios.html">Dados e relatórios</a>
+          <a class="nav-link" href="seguranca-operacao.html">Segurança e operação</a>
+          <a class="nav-link active" href="referencia.html" aria-current="page">Mapa do projeto</a>
+          </nav>
+        </div>
+      </div>
+    </aside>
+    <main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+    <section class="page-hero compact">
+      <span class="eyebrow">MAPA DO PROJETO</span>
+      <h1>Mapa do projeto</h1>
+      <p>Índice dos arquivos mantidos pela JOIA, separados por responsabilidade e uso.</p>
+    </section>
+<section>
+<h2>Aplicação e configuração</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Arquivo</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
+<tr><td><code>index.html</code></td><td>Interface e versão do chat. Organiza cadastro, retomada, mensagens, stream, caderno, voz, avatar e ações do professor. Veja o <a href="frontend.html">guia de frontend</a>.</td></tr>
+<tr><td><code>teste_openai.php</code></td><td>Controla sessão, valida entrada e despacho, monta o contexto, chama o provedor quando necessário, salva o percurso e emite relatórios. Veja as <a href="backend.html#rotas">rotas</a>.</td></tr>
+<tr><td><code>treinamento.txt</code></td><td>Define identidade, comunicação, abordagem pedagógica, temas e expectativas de relatório para o modelo.</td></tr>
+<tr><td><code>NEGATIVEPROMPTS.TXT</code></td><td>Explicita as restrições de resposta que complementam o treinamento.</td></tr>
+<tr><td><code>config.local.example.php</code></td><td>Expõe o formato da configuração local com valor vazio.</td></tr>
+<tr><td><code>upload_temp.php</code></td><td>Aceita imagens e áudios no upload legado e remove itens expirados. A interface de chat trabalha sem essa rota.</td></tr>
+<tr><td><code>.gitignore</code></td><td>Identifica o que deve permanecer fora do controle de versão, incluindo configurações e memórias privadas.</td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>Módulos do servidor</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Arquivo</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
+<tr><td><code>includes/streaming.php</code></td><td>Lê eventos do provedor, gerencia o envio NDJSON e conserva parágrafos transmitidos durante a revisão.</td></tr>
+<tr><td><code>includes/llm_context.php</code></td><td>Calcula orçamento conservador de entrada, evita pares redundantes no contexto e formata evidências de relatório.</td></tr>
+<tr><td><code>includes/memoria_vetorial.php</code></td><td>Decide quando vale consultar a memória do aluno, calcula ou reaproveita vetores e classifica resultados por similaridade.</td></tr>
+<tr><td><code>includes/referencias_tecnicas.php</code></td><td>Localiza expressões no código recente e referências técnicas por intenção e termos. Oferece explicações locais em situações específicas.</td></tr>
+<tr><td><code>includes/materiais_didaticos.php</code></td><td>Mantém o catálogo curado, seleciona aulas pertinentes e responde consultas explícitas de localização.</td></tr>
+<tr><td><code>includes/pedagogical_snippets.php</code></td><td>Reconhece tema e continuidade, valida caixas curtas e oferece uma orientação contextual em prosa quando necessário.</td></tr>
+<tr><td><code>includes/api_metrics.php</code></td><td>Normaliza o uso retornado pelo provedor, estima custo quando há dados e grava telemetria privada opcional.</td></tr>
+<tr><td><code>scripts/usage.php</code></td><td>Exibe agregados de consumo por dia, semana ou mês pela linha de comando.</td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>Interface e recursos distribuídos</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Caminho</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
+<tr><td><code>assets/chat/markdown.js</code></td><td>Renderizador DOM de mensagens, texto, títulos, listas, tabelas e caixas com rótulo de linguagem.</td></tr>
+<tr><td><code>assets/chat/prism.min.js</code> e <code>LICENSE-prism.txt</code></td><td>Dependência local de sintaxe e sua licença.</td></tr>
+<tr><td><code>assets/avatar/joia-avatar.mjs</code></td><td>Integração de avatar da JOIA.</td></tr>
+<tr><td><code>assets/avatar/</code></td><td>Módulos distribuídos do avatar, incluindo TalkingHead, retargeting, física, visemas por idioma, reprodução e licenças.</td></tr>
+<tr><td><code>assets/readme/joia-banner.svg</code> e <code>joao-carlos.svg</code></td><td>Identidade visual e imagem de apresentação usadas pelo README e pela documentação.</td></tr>
+</tbody></table></div>
+</section>
+<section>
+<h2>Documentação, testes e registros</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Caminho</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
+<tr><td><code>README.md</code></td><td>Apresentação do projeto, versão e ponto de entrada da documentação.</td></tr>
+<tr><td><code>documentacao/index.html</code></td><td>Visão de conjunto e navegação do manual.</td></tr>
+<tr><td><code>documentacao/frontend.html</code> e <code>backend.html</code></td><td>Fluxos do navegador e contrato da API PHP.</td></tr>
+<tr><td><code>documentacao/inteligencia-artificial.html</code> e <code>dados-relatorios.html</code></td><td>Estratégia pedagógica, recuperação de contexto e ciclo de vida do percurso do aluno.</td></tr>
+<tr><td><code>documentacao/seguranca-operacao.html</code> e <code>referencia.html</code></td><td>Ambiente, proteção, diagnóstico e este mapa de arquivos.</td></tr>
+<tr><td><code>documentacao/otimizacao-api.md</code></td><td>Auditoria, decisões e metodologia de comparação com dados sintéticos.</td></tr>
+<tr><td><code>documentacao/assets/wiki.css</code> e <code>wiki.js</code></td><td>Estilos do manual e ação de copiar exemplos. A pasta também inclui o Bootstrap distribuído para layout e navegação.</td></tr>
+<tr><td><code>AGENTS.md</code>, <code>contexto/README.md</code>, <code>contexto/buscar.py</code> e <code>contexto/registros/</code></td><td>Instruções, consulta textual e registros de decisões de desenvolvimento. Esses registros não incluem os dados privados de alunos.</td></tr>
+<tr><td><code>tests/compare_api.py</code></td><td>Exercita as rotas com dados sintéticos e mede chamadas, tamanhos e comportamento usando a revisão de base.</td></tr>
+<tr><td><code>tests/compare_rag.php</code></td><td>Exercita a decisão de recuperação e a memória vetorial SQLite com dados sintéticos.</td></tr>
+<tr><td><code>tests/fixtures/openai.php</code></td><td>Simula a API de texto e embeddings para o servidor de teste, sem rede ou credenciais reais.</td></tr>
+<tr><td><code>memoria/.gitkeep</code> e <code>memoria/.htaccess</code></td><td>Mantêm o diretório legado no checkout e bloqueiam leitura HTTP em Apache compatível.</td></tr>
+<tr><td><code>logs/</code> e <code>tmp/joia_uploads/</code></td><td>Artefatos legados de log e upload. Os arquivos de operação atuais devem ficar em diretórios privados.</td></tr>
+</tbody></table></div>
+</section>
+
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.20</span><a href="index.html">Visão geral →</a></footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark" role="status"><div class="toast-body">Código copiado.</div></div></div>
+<script src="assets/bootstrap.bundle.min.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

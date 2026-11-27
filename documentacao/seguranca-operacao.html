@@ -1,20 +1,100 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Documentação técnica da JOIA — Segurança e operação"><title>Segurança e operação — JOIA Docs</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/bootstrap.min.css"><link rel="stylesheet" href="assets/wiki.css"></head><body><a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a><header class="wiki-navbar sticky-top border-bottom"><nav class="navbar navbar-expand-lg container-xxl"><a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a><button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button><div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.7</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div></nav></header><div class="container-xxl"><div class="row g-0"><aside class="col-lg-3 col-xl-2 wiki-sidebar border-end"><div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1"><div class="offcanvas-header"><h2 class="h5">JOIA Docs</h2><button class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div><div class="offcanvas-body"><nav class="nav flex-column"><span class="nav-heading">DOCUMENTAÇÃO</span><a class="nav-link " href="index.html">Visão geral</a><a class="nav-link " href="frontend.html">Frontend</a><a class="nav-link " href="backend.html">Backend PHP</a><a class="nav-link " href="inteligencia-artificial.html">Inteligência artificial</a><a class="nav-link " href="dados-relatorios.html">Dados e relatórios</a><a class="nav-link active" href="seguranca-operacao.html">Segurança e operação</a><a class="nav-link " href="referencia.html">Referência</a></nav></div></div></aside><main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
-<section class="page-hero compact"><span class="eyebrow">OPERAÇÃO</span><h1>Segurança e diagnóstico</h1><p>Proteções já presentes, pontos de atenção e verificações operacionais da JOIA.</p></section>
-<section><h2>Proteções implementadas</h2><ul class="check-list"><li>Chave OpenAI procurada em variável de ambiente ou arquivo fora da pasta pública.</li><li>Erros de inicialização são genéricos para o navegador e detalhados somente no log.</li><li>ID persistente do estudante usa aleatoriedade criptográfica e formato restrito.</li><li>Gravação de memória utiliza bloqueio exclusivo.</li><li>Mensagens são renderizadas como texto, reduzindo risco de HTML injetado.</li><li>Respostas JSON e PDFs usam <code>no-store</code> ou vínculo com sessão.</li><li>Acesso docente é protegido; seus detalhes não são publicados aqui.</li></ul></section>
-<section><h2>Configuração da API</h2><p>A opção preferencial é <code>OPENAI_API_KEY</code> no ambiente do processo PHP. Como alternativa, o sistema procura <code>config.local.php</code> dois diretórios acima da JOIA.</p><div class="code-example"><div class="code-toolbar"><span>Modelo de configuração</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>&amp;lt;?php
-return [
-  &#x27;OPENAI_API_KEY&#x27; =&gt; &#x27;definida-somente-no-servidor&#x27;
-];</code></pre></div>
-<div class="note warning"><b>Nunca publique:</b> chave real, credencial docente, hashes de acesso, sessões, memória de alunos ou instruções internas completas.</div></section>
-<section><h2>Validações de entrada</h2><p>O ID da conversa aceita letras, números e hífen e possui até 80 caracteres. A mensagem precisa existir e respeitar 4.000 caracteres. O ID do estudante aceita exatamente 32 caracteres hexadecimais. O método do chat é POST.</p><div class="code-example"><div class="code-toolbar"><span>Validação de mensagem</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>$messageLength = function_exists(&#x27;mb_strlen&#x27;)
-  ? mb_strlen($message, &#x27;UTF-8&#x27;) : strlen($message);
-if ($message === &#x27;&#x27; || $messageLength &gt; MAX_MESSAGE_LENGTH) {
-  respond([&#x27;erro&#x27; =&gt; &#x27;Digite uma mensagem válida.&#x27;], 422);
-}</code></pre></div></section>
-<section><h2>Upload temporário legado</h2><p><code>upload_temp.php</code> permite extensões de imagem/áudio, move o arquivo e remove itens com mais de 30 minutos. Ele não está conectado ao terminal atual. Antes de habilitá-lo, é necessário validar MIME real, limitar tamanho, gerar nome criptograficamente aleatório, impedir execução e armazenar fora da raiz pública.</p><div class="note danger"><b>Não recomendado em produção como está:</b> a implementação usa permissão ampla de diretório, confia na extensão e monta URL com o host da requisição.</div></section>
-<section><h2>Diagnóstico por sintoma</h2><div class="accordion" id="diag"><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#d1">Resposta inválida ou vazia</button></h3><div id="d1" class="accordion-collapse collapse show" data-bs-parent="#diag"><div class="accordion-body">Verifique o log PHP, sintaxe, extensão cURL, chave e se o servidor consegue sair por HTTPS.</div></div></div><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#d2">Memória não gravada</button></h3><div id="d2" class="accordion-collapse collapse" data-bs-parent="#diag"><div class="accordion-body">Confirme existência e permissão mínima de escrita em <code>memoria/</code>. Não use permissão pública ampla.</div></div></div><div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#d3">OpenAI recusou a solicitação</button></h3><div id="d3" class="accordion-collapse collapse" data-bs-parent="#diag"><div class="accordion-body">Confira chave, cota, modelo disponível, endpoint e o status registrado no log protegido.</div></div></div></div></section>
-<section><h2>Verificações antes da publicação</h2><div class="code-example"><div class="code-toolbar"><span>Lint e inspeção</span><button class="copy-btn" type="button">Copiar</button></div><pre><code>php -l teste_openai.php
-php -l upload_temp.php
-git diff --check
-git status --short</code></pre></div>
-<ul class="check-list"><li>Testar cadastro completo e conversa em uma sessão nova.</li><li>Testar erro controlado sem chave e indisponibilidade externa.</li><li>Testar notas, download TXT, reset e PDF.</li><li>Verificar celular, teclado e leitor de tela.</li><li>Revisar o diff procurando segredos e dados pessoais.</li><li>Definir retenção, backup e acesso institucional às memórias.</li></ul></section><footer><b>JOIA Docs</b><span>Referência da versão 1.7</span><a href="referencia.html">Índice de funções →</a></footer></main></div></div><div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark"><div class="toast-body">Código copiado.</div></div></div><script src="assets/bootstrap.bundle.min.js"></script><script src="assets/wiki.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Como executar a aplicação, configurar serviços opcionais e diagnosticar o caminho de uma pergunta.">
+  <title>Segurança e operação — JOIA Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
+<header class="wiki-navbar sticky-top border-bottom">
+  <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
+    <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.20</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+  </nav>
+</header>
+<div class="container-xxl">
+  <div class="row g-0">
+    <aside class="col-lg-3 col-xl-2 wiki-sidebar border-end">
+      <div class="offcanvas-lg offcanvas-start" id="menu" tabindex="-1" aria-labelledby="menu-title">
+        <div class="offcanvas-header"><h2 class="h5" id="menu-title">JOIA Docs</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fechar"></button></div>
+        <div class="offcanvas-body">
+          <nav class="nav flex-column" aria-label="Seções do manual">
+          <span class="nav-heading">DOCUMENTAÇÃO</span>
+          <a class="nav-link" href="index.html">Visão geral</a>
+          <a class="nav-link" href="frontend.html">Frontend</a>
+          <a class="nav-link" href="backend.html">Backend PHP</a>
+          <a class="nav-link" href="inteligencia-artificial.html">Inteligência artificial</a>
+          <a class="nav-link" href="dados-relatorios.html">Dados e relatórios</a>
+          <a class="nav-link active" href="seguranca-operacao.html" aria-current="page">Segurança e operação</a>
+          <a class="nav-link" href="referencia.html">Mapa do projeto</a>
+          </nav>
+        </div>
+      </div>
+    </aside>
+    <main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
+    <section class="page-hero compact">
+      <span class="eyebrow">SEGURANÇA E OPERAÇÃO</span>
+      <h1>Segurança e operação</h1>
+      <p>Como executar a aplicação, configurar serviços opcionais e diagnosticar o caminho de uma pergunta.</p>
+    </section>
+<section id="ambiente">
+<h2>Ambiente e primeira verificação</h2>
+<p>Sirva a JOIA com PHP 8 e sessões habilitadas. Para o chat com modelo, configure cURL e acesso de saída à API da OpenAI. <code>mbstring</code> melhora o processamento em UTF-8, e <code>pdo_sqlite</code> é necessário para a memória vetorial. Use HTTPS em produção e limite o acesso a arquivos e processos privados.</p>
+<p>Para testar a sintaxe e abrir a interface localmente, execute os comandos a seguir na raiz do projeto. O servidor de desenvolvimento ignora <code>.htaccess</code>. Use apenas dados sintéticos e pastas privadas durante o teste.</p>
+<div class="code-example"><div class="code-toolbar"><span>Verificação local</span><button type="button" class="copy-btn">Copiar</button></div><pre><code>php -l teste_openai.php
+php -S 127.0.0.1:8000 -t .</code></pre></div>
+</section>
+<section id="configuracao">
+<h2>Variáveis de ambiente</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Configuração</th><th scope="col">Uso</th></tr></thead><tbody>
+<tr><td><code>OPENAI_API_KEY</code></td><td>Chave do processo PHP. Caso use o arquivo de configuração alternativo, mantenha-o fora da raiz pública, no caminho lido por <code>openAIApiKey()</code>. Use <code>config.local.example.php</code> como modelo.</td></tr>
+<tr><td><code>JOIA_MEMORY_DIR</code></td><td>Diretório privado gravável para a memória. O padrão é <code>joia-memoria</code> ao lado da raiz pública.</td></tr>
+<tr><td><code>JOIA_VECTOR_DIR</code></td><td>Diretório privado gravável que habilita o SQLite de recuperação individual. A aplicação abre <code>joia-vetores.sqlite3</code> dentro dele.</td></tr>
+<tr><td><code>JOIA_METRICS_DIR</code></td><td>Diretório privado preexistente, com acesso só para a conta do serviço. Ativa os registros de uso e latência.</td></tr>
+<tr><td><code>JOIA_API_PRICES_JSON</code></td><td>Preços em USD por milhão de tokens. A estimativa local fica separada do faturamento.</td></tr>
+<tr><td><code>JOIA_METRICS_TZ</code></td><td>Fuso usado para os períodos no CLI de métricas. O padrão é <code>America/Sao_Paulo</code>.</td></tr>
+<tr><td><code>JOIA_TOKEN_BUDGETS_JSON</code></td><td>Limites opcionais por operação. Ajuste em ambiente de teste para medir o efeito antes de usar com uma turma.</td></tr>
+<tr><td><code>JOIA_ADAPTIVE_RAG</code>, <code>JOIA_COMPACT_REPORT</code>, <code>JOIA_LOCAL_ONBOARDING</code>, <code>JOIA_REQUEST_DEDUP</code></td><td>O valor <code>0</code> desativa a otimização correspondente. Consulte as condições e exemplos na auditoria de uso.</td></tr>
+</tbody></table></div><p>As configurações opcionais, os formatos JSON e os procedimentos de comparação estão detalhados na <a href="otimizacao-api.md">auditoria técnica de consumo</a>.</p>
+</section>
+<section id="privacidade">
+<h2>Proteção de dados e credenciais</h2>
+<ul><li>Entregue o código pessoal ao próprio estudante e peça que o guarde em segurança. Em equipamento compartilhado, encerre o acesso ao terminar.</li>
+<li>Conserve históricos, backups, SQLite, métricas e relatórios em locais privados. A regra de <code>memoria/.htaccess</code> protege o destino legado em Apache compatível. Outros servidores precisam de regra equivalente caso ainda existam arquivos antigos na raiz pública.</li>
+<li>Mantenha a chave e os meios de acesso docente fora de exemplos, capturas de tela e documentação. Proteja também as sessões usadas para baixar PDFs.</li>
+<li>Registros operacionais descrevem a chamada, o modelo, o uso informado e a duração. Não reúnem a conversa, os códigos de acesso ou os segredos da conta.</li></ul>
+</section>
+<section id="diagnostico">
+<h2>Diagnóstico</h2>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Sintoma</th><th scope="col">O que verificar</th></tr></thead><tbody>
+<tr><td>A pergunta fica aguardando confirmação</td><td>Sessão PHP, método e endpoint da requisição. Consulte o primeiro evento NDJSON quando o chat usa streaming.</td></tr>
+<tr><td>Todos os parágrafos chegam juntos</td><td>Buffering e compressão do PHP ou do proxy. Compare tempo entre os eventos de início, explicação, parágrafos e conclusão.</td></tr>
+<tr><td>O contexto antigo não aparece</td><td>Primeiro verifique se a retomada associou o mesmo aluno. Depois confira <code>JOIA_VECTOR_DIR</code>, PDO SQLite e as métricas de recuperação. Sem vetores, o chat continua com o histórico recente.</td></tr>
+<tr><td>Uma caixa de código não aparece</td><td>Aplique os critérios pedagógicos, confira se o assunto permanece relacionado e considere a cota diária do aluno. A prosa continua disponível.</td></tr>
+<tr><td>O caderno informa conflito</td><td>Houve edição em outra revisão. Preserve o texto local e reabra a versão salva antes de editar novamente.</td></tr>
+<tr><td>O relatório não baixa</td><td>Volte à sessão que o gerou. O endereço do PDF depende da referência temporária nessa sessão.</td></tr>
+<tr><td>A métrica está ausente</td><td>Confira a pasta privada e suas permissões. Em um stream interrompido, a API pode terminar sem o evento de uso.</td></tr>
+</tbody></table></div><div class="code-example"><div class="code-toolbar"><span>Leitura de métricas e testes com transporte simulado</span><button type="button" class="copy-btn">Copiar</button></div><pre><code>php scripts/usage.php day
+php scripts/usage.php week
+php scripts/usage.php month
+python3 tests/compare_api.py
+php tests/compare_rag.php includes/memoria_vetorial.php</code></pre></div>
+</section>
+
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.20</span><a href="referencia.html">Mapa do projeto →</a></footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="copyToast" class="toast text-bg-dark" role="status"><div class="toast-body">Código copiado.</div></div></div>
+<script src="assets/bootstrap.bundle.min.js"></script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>

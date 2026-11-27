@@ -108,6 +108,23 @@ function curl_exec(CurlHandle $handle): string|bool
             default => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
         },
         default => match (true) {
+            $latest === 'Como testar o algoritmo de um acumulador quando a lista está vazia?' => [
+                'Com uma lista vazia, o laço não roda e o acumulador conserva o estado inicial. Confira esse valor e compare com uma lista de um elemento.',
+            ],
+            $latest === 'Agora me da um exemplo de código de um objeto que pula na tela por exemplo.' => [
+                "Use o deslocamento vertical para levantar o objeto e depois voltá-lo à posição inicial.\n\n",
+                "Um valor negativo de translateY move o objeto para cima.",
+            ],
+            $latest === 'Quero ligar o valor animado à opacidade de uma View com Animated.' => [
+                "O valor animado controla quanto do elemento fica visível.\n\n",
+                "```jsx\nconst opacidade = useRef(new Animated.Value(0)).current;\n<Animated.View style={{ opacity: opacidade }} />\n```",
+            ],
+            str_contains($latest, 'No exemplo anterior de opacidade, por que o valor começa em zero') => str_contains($system, 'Fragmento efetivamente exibido na conversa')
+                && str_contains($system, 'const opacidade = useRef(new Animated.Value(0)).current;')
+                && str_contains($system, 'opacity: opacidade')
+                && str_contains($system, 'Referências técnicas curadas')
+                ? ["Naquele trecho, a variável opacidade começa em zero porque é o valor inicial de Animated.Value.\n\n", 'O elemento começa invisível e aparece quando o valor cresce em direção a um.']
+                : ['O trecho usa uma variável substituta chamada valorErradoDaFixture.'],
             $latest === 'oi to com dificuldades com o nativewind, não entendo onde aplicar'
                 => ["No NativeWind, a classe da View organiza o espaço interno.\n\n", "```jsx\n<View\n  className=\"p-4\"\n/>\n```"],
             $latest === 'E se eu quiser misturar o nativewind com animated?' => [$mixedProse, 'Conecte o valor à propriedade visual da View que precisa mudar.'],

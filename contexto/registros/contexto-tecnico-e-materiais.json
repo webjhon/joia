@@ -1,0 +1,17 @@
+{
+  "titulo": "Contexto técnico de programação e recuperação de materiais didáticos",
+  "situacao": "aprovada",
+  "fonte": "Pedido do professor na conversa da JOIA no Codex",
+  "termos": ["programação", "algoritmos", "propriedade", "valor", "React Native", "NativeWind", "Expo", "Animated", "RAG", "materiais didáticos", "wiki"],
+  "pedidos": [
+    "Resumo: melhorar a precisão das explicações de algoritmos e programação com os conceitos e as arquiteturas usados no curso.",
+    "Recuperar e sintetizar os materiais do professor, inclusive o roteiro do salto quando o aluno pergunta pelo material em turnos seguintes.",
+    "Atualizar README e wiki como referências da estrutura e das estratégias atuais da JOIA."
+  ],
+  "decisoes": [
+    "Priorizar o código efetivamente mostrado ao aluno e resolver localmente dúvidas inequívocas sobre propriedade e valor em estilos.",
+    "Usar um catálogo técnico curado com recuperação local por termos e expressões da aula, independente da memória vetorial privada.",
+    "Usar o catálogo do professor para responder a pedidos de material com título, seção e relevância para a dúvida. Mantêm-se os limites definidos em referencias-didaticas-professor.json e exemplos-combinados.json.",
+    "Descrever os fluxos, arquivos e decisões arquiteturais vigentes na wiki e reproduzir os casos com perfis sintéticos e API simulada."
+  ]
+}

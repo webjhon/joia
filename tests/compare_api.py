@@ -627,6 +627,106 @@ def exercise_teaching_materials(directory, origin):
     assert all("referencias" not in event for _, event in streamed[:-1])
 
 
+def exercise_teacher_lookup_and_technical_context(directory, origin):
+    def sign_up():
+        student = Client(origin)
+        student.answer(acao="novo")
+        for value in ("Pessoa Fictícia", "Turma de teste", "Unidade de teste"):
+            profile = student.answer(mensagem=value)
+        return student, profile["codigo"]
+
+    def ask(student, message, **fields):
+        with student.send(stream=True, mensagem=message, **fields) as response:
+            assert response.status == 200, (response.status, response.read())
+            if response.headers.get_content_type() == "application/x-ndjson":
+                events = [json.loads(line) for line in response]
+                assert events[0]["type"] == "start" and events[-1]["type"] == "done", events
+                visible = "".join(event["text"] for event in events if event["type"] == "delta")
+                assert visible.rstrip() == events[-1]["resposta"], events
+                return events[-1]
+            return json.load(response)
+
+    student, access = sign_up()
+    jump = ask(student, "Agora me da um exemplo de código de um objeto que pula na tela por exemplo.")
+    assert jump["etapa"] == "conversation" and "translateY" in jump["resposta"]
+    before_lookup = len(calls(directory))
+    known_topics = (
+        ("isso está em algum material?", "O sapo que pula"),
+        ("Me refiro em algum material do profe joão", "O sapo que pula"),
+        ("Mas tu não sabe quais os materiais dele?", "O sapo que pula"),
+        ("O profe João tem material sobre criar um APK no Expo?", "Gerando um APK"),
+    )
+    for question, expected_title in known_topics:
+        request_id = str(uuid.uuid4())
+        result = ask(student, question, request_id=request_id)
+        text = result["resposta"]
+        assert expected_title in text, (question, result)
+        assert "http" not in text and "```" not in text, result
+        if expected_title == "O sapo que pula":
+            assert "translateY" in text and "vertical" in text.lower(), result
+        if result.get("referencias") is not None:
+            assert any(expected_title in title for title in result["referencias"]), result
+    before_replay = len(student.answer(acao="estado")["historico"])
+    replay = student.answer(mensagem=question, request_id=request_id)
+    assert replay["resposta"] == result["resposta"] and replay.get("referencias") == result.get("referencias"), replay
+    assert len(student.answer(acao="estado")["historico"]) == before_replay
+    unknown = ask(student, "E tem algum material do profe João sobre índices em SQL?")
+    assert "não encontrei" in unknown["resposta"].lower() and "http" not in unknown["resposta"], unknown
+    assert "O sapo que pula" not in unknown["resposta"] and "Gerando um APK" not in unknown["resposta"], unknown
+    assert not unknown.get("referencias"), unknown
+    catalog = ask(student, "Quais são todos os materiais do professor João?")
+    assert "O sapo que pula" in catalog["resposta"] and "NativeWind com Expo" in catalog["resposta"], catalog
+    assert "http" not in catalog["resposta"]
+    assert len(calls(directory)) == before_lookup
+
+    technical, code = sign_up()
+    setup = ask(technical, "Quero ligar o valor animado à opacidade de uma View com Animated.")
+    assert "opacity: opacidade" in setup["resposta"] and setup["resposta"].count("```") == 2, setup
+    identity = code.split("-", 1)[0]
+    path = directory / "memory" / f"aluno_{identity}.json"
+    memory = json.loads(path.read_text())
+    for index in range(7):
+        memory["history"].extend([
+            {"role": "user", "content": f"Como validar a etapa intermediária {index} do exercício?"},
+            {"role": "assistant", "content": f"Observe o efeito visual da etapa {index} antes de continuar."},
+        ])
+    memory["history"][-1]["content"] += '\n\n```jsx\n<View className="p-9" />\n```'
+    assert all("opacity: opacidade" not in turn["content"] for turn in memory["history"][-12:])
+    path.write_text(json.dumps(memory, ensure_ascii=False))
+    resumed = Client(origin)
+    resumed.answer(acao="retomar", codigo=code, mostrar_historico=False)
+
+    before_explanation = len(calls(directory))
+    explanation = ask(resumed, "O que significa opacity: opacidade naquele exemplo?")
+    text = explanation["resposta"].lower()
+    assert "opacity" in text and "opacidade" in text and ("propriedade" in text or "chave" in text), explanation
+    assert ("variável" in text or "valor" in text) and "```" not in text and "http" not in text, explanation
+    assert len(calls(directory)) == before_explanation
+
+    broader = "No exemplo anterior de opacidade, por que o valor começa em zero e o que muda durante a animação? Explique em palavras."
+    before_broader = len(calls(directory))
+    explained = ask(resumed, broader)
+    assert "valorErradoDaFixture" not in explained["resposta"] and "invisível" in explained["resposta"], explained
+    trace = calls(directory)[before_broader:]
+    assert len(trace) == 1 and trace[0]["kind"] == "chat", trace
+    system = "\n".join(item["content"] for item in trace[0]["messages"] if item["role"] == "system")
+    assert "Fragmento efetivamente exibido na conversa" in system and "Referências técnicas curadas" in system
+    assert "const opacidade = useRef(new Animated.Value(0)).current;" in system and "opacity: opacidade" in system
+    assert '<View className="p-9" />' not in system
+
+    algorithm = ask(resumed, "Como testar o algoritmo de um acumulador quando a lista está vazia?")
+    assert "estado inicial" in algorithm["resposta"], algorithm
+    algorithm_system = "\n".join(item["content"] for item in calls(directory)[-1]["messages"] if item["role"] == "system")
+    assert "Programação · Decomposição e teste de mesa" in algorithm_system
+    assert "Fragmento efetivamente exibido na conversa" not in algorithm_system
+    assert "opacity: opacidade" not in algorithm_system and '<View className="p-9" />' not in algorithm_system
+
+    switched = ask(resumed, "Mudando de assunto, como funciona um índice em SQL?")
+    assert switched["etapa"] == "conversation" and not switched.get("referencias"), switched
+    switched_system = [item["content"] for item in calls(directory)[-1]["messages"] if item["role"] == "system"]
+    assert all("Fragmento efetivamente exibido na conversa" not in prompt for prompt in switched_system)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--php", default=shutil.which("php") or "php", help="binário PHP disponível para testes")
@@ -676,6 +776,7 @@ def main():
         stage_app(directory / "web", None)
         with app_server(directory, command, {}) as origin:
             exercise_teaching_materials(directory, origin)
+            exercise_teacher_lookup_and_technical_context(directory, origin)
 
     assert measurements["otimizada"]["relatorio_contexto_bytes"] < measurements["anterior"]["relatorio_contexto_bytes"]
     assert measurements["otimizada_com_flags_desligadas"]["relatorio_contexto_bytes"] == measurements["anterior"]["relatorio_contexto_bytes"]

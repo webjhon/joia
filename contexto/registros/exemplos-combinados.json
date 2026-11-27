@@ -1,0 +1,16 @@
+{
+  "titulo": "Continuidade de exemplos de NativeWind com Animated",
+  "situacao": "aprovada",
+  "fonte": "Diagnóstico e correção autorizada na conversa da JOIA no Codex",
+  "termos": ["NativeWind", "Animated", "PHP", "Markdown", "streaming", "cota diária", "continuação"],
+  "pedidos": [
+    "Resumo: corrigir a perda de contexto quando o aluno combina NativeWind com Animated ou pede um exemplo da situação anterior.",
+    "Só anunciar exemplos quando a caixa de código estiver visível. Se a resposta ficar em prosa, orientar o aluno sobre a mesma dúvida e manter a leitura progressiva."
+  ],
+  "decisoes": [
+    "A combinação das duas tecnologias cabe na exceção de código curto. Aplicam-se a mesma caixa de até quatro linhas e a mesma cota diária por aluno aprovadas em pistas-diarias-e-primeiro-passo.json.",
+    "Uma continuação pode retomar a intenção do aluno a partir do histórico salvo. Uma mudança de assunto encerra a aplicação da exceção anterior.",
+    "Separar a prosa do bloco de código no PHP. A caixa só chega ao chat depois da validação e da gravação da resposta e da cota. Os parágrafos já enviados permanecem visíveis.",
+    "Reproduzir a conversa com perfis sintéticos, incluindo a promessa sem caixa e a cota compartilhada, pela entrada HTTP com API simulada."
+  ]
+}

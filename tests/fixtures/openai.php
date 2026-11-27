@@ -71,16 +71,32 @@ function curl_exec(CurlHandle $handle): string|bool
         return false;
     }
 
+    if ($kind === 'chat' && str_contains($latest, 'teste concorrente de cota')) {
+        // Both processes reach the model before either can persist a reply.
+        $barrier = dirname(getenv('JOIA_TEST_CALLS')) . '/race-participants';
+        file_put_contents($barrier, "pronto\n", FILE_APPEND | LOCK_EX);
+        $deadline = microtime(true) + 2;
+        while (count(file($barrier, FILE_IGNORE_NEW_LINES)) < 2) {
+            if (microtime(true) >= $deadline) throw new RuntimeException('Teste concorrente requer dois processos PHP.');
+            usleep(10000);
+        }
+    }
+
     $prefix = "Na coluna, o alinhamento horizontal acontece no eixo transversal.\n\n";
     $nativeWindFourLines = "```jsx\n<View\n  className=\n  \"p-4 rounded-lg\"\n/>\n```";
     $animatedFourLines = "```jsx\nAnimated.timing(opacidade, {\n  toValue: 1,\n  useNativeDriver: true,\n}).start();\n```";
     $invalidJump = "```jsx\nfunction Jump() {\n  return <View />;\n}\n```";
     $omittedOpacitySnippet = str_contains($latest, 'animar a opacidade de zero a um');
     $omittedInterpolationSnippet = str_contains($latest, 'mapear dois intervalos com interpolate');
+    $mixedProse = "O NativeWind aplica o estilo fixo enquanto Animated controla a opacidade que muda.\n\n";
+    $mixedFalseDelivery = [$mixedProse, "Aqui está um exemplo para testar.\n\n", '### Explicação do código'];
+    $mixedInvalid = "```jsx\nfunction ComponenteCompletoNaoPermitido() {\n  return <Animated.View className=\"p-4\" style={{ opacity: valor }} />;\n}\n```";
+    $mixedExampleRequested = in_array($latest, ['poderia me dar um exemplo de código pra esta situação?', 'quual exemplo, não vi nenhum código', 'Mas quero um exemplo de código'], true);
     $pieces = match ($kind) {
         'report' => ['## Síntese do percurso', "\n\n", 'A estudante comparou o eixo principal e o transversal.'],
         'onboarding' => ['Informação registrada. Siga para a próxima etapa do cadastro.'],
         'pedagogical_retry' => match (true) {
+            $mixedExampleRequested => ['Aplique a classe no elemento e use o valor animado para observar o efeito visual.'],
             $omittedOpacitySnippet => str_contains($system, 'entregue a caixa de código dentro do limite')
                 ? ["O valor animado define a opacidade.\n\n", $animatedFourLines]
                 : ["Use o valor animado na propriedade de opacidade da Animated.View.\n\n", 'Confira se o elemento começa invisível e aparece gradualmente.'],
@@ -92,6 +108,13 @@ function curl_exec(CurlHandle $handle): string|bool
             default => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
         },
         default => match (true) {
+            $latest === 'oi to com dificuldades com o nativewind, não entendo onde aplicar'
+                => ["No NativeWind, a classe da View organiza o espaço interno.\n\n", "```jsx\n<View\n  className=\"p-4\"\n/>\n```"],
+            $latest === 'E se eu quiser misturar o nativewind com animated?' => [$mixedProse, 'Conecte o valor à propriedade visual da View que precisa mudar.'],
+            $latest === 'quual exemplo, não vi nenhum código' => [$mixedProse, $mixedInvalid],
+            $latest === 'Mas quero um exemplo de código' => [$mixedProse, "### Explicação do código\n\n", 'O elemento aparece aos poucos.'],
+            $mixedExampleRequested => $mixedFalseDelivery,
+            str_contains($latest, 'Tailwind CSS na web') => [$prefix, $nativeWindFourLines],
             $omittedOpacitySnippet => [
                 "A opacidade aumenta quando o valor animado vai de zero a um.\n\n",
                 "Aqui está um trecho curto para testar.\n\n",

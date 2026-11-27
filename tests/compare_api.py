@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from http.cookiejar import CookieJar
 import io
@@ -102,8 +103,8 @@ def app_server(directory, command, settings):
 
     environment = {
         key: value for key, value in os.environ.items()
-        if not key.startswith("JOIA_") and key != "OPENAI_API_KEY"
-    } | settings
+        if not key.startswith("JOIA_") and key not in {"OPENAI_API_KEY", "PHP_CLI_SERVER_WORKERS"}
+    }
     environment.update({
         "OPENAI_API_KEY": "teste-sem-rede",
         "JOIA_TEST_CALLS": str(directory / "calls.jsonl"),
@@ -111,6 +112,7 @@ def app_server(directory, command, settings):
         "JOIA_METRICS_DIR": str(directory / "metrics"),
         "JOIA_API_PRICES_JSON": json.dumps({"gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60}}),
     })
+    environment.update(settings)
     config = [
         "-d", f"session.save_path={directory / 'sessions'}",
         "-d", f"auto_prepend_file={ROOT / 'tests/fixtures/openai.php'}",
@@ -436,6 +438,151 @@ def exercise_guided_chat(directory, origin):
     assert "```" not in guidance and snapshot(code)[1]["snippet_quota"]["count"] == 1
 
 
+def exercise_combined_chat(directory, origin):
+    def sign_up():
+        client = Client(origin)
+        client.answer(acao="novo")
+        for value in ("Pessoa Fictícia", "Turma de teste", "Unidade de teste"):
+            profile = client.answer(mensagem=value)
+        return client, profile["codigo"]
+
+    def memory_for(code):
+        identity = code.split("-", 1)[0]
+        path = directory / "memory" / f"aluno_{identity}.json"
+        return path, json.loads(path.read_text())
+
+    def ask(client, question, **fields):
+        events = [event for _, event in client.events(mensagem=question, **fields)]
+        assert events[0]["type"] == "start" and events[-1]["type"] == "done", events
+        deltas = [event["text"] for event in events if event["type"] == "delta"]
+        answer = events[-1]["resposta"]
+        assert "".join(deltas).rstrip() == answer, events
+        assert all("ComponenteCompletoNaoPermitido" not in delta for delta in deltas), events
+        assert all("Aqui está um exemplo" not in delta and "Explicação do código" not in delta for delta in deltas), events
+        return events, answer
+
+    def snippet_from(events, answer):
+        assert answer.count("```") == 2, events
+        snippet = answer.split("```")[1]
+        lines = snippet.splitlines()[1:]
+        assert 1 <= len(lines) <= 4, events
+        code_payloads = [index for index, event in enumerate(events) if event["type"] == "delta" and "```" in event["text"]]
+        assert code_payloads == [len(events) - 2], events
+        return snippet
+
+    first_prompt = "oi to com dificuldades com o nativewind, não entendo onde aplicar"
+    mix_prompt = "E se eu quiser misturar o nativewind com animated?"
+    example_prompt = "poderia me dar um exemplo de código pra esta situação?"
+    missing_prompt = "quual exemplo, não vi nenhum código"
+    final_prompt = "Mas quero um exemplo de código"
+
+    student, code = sign_up()
+    initial, answer = ask(student, first_prompt)
+    assert 'className="p-4"' in snippet_from(initial, answer)
+    assert memory_for(code)[1]["snippet_quota"]["count"] == 1
+    _, answer = ask(student, mix_prompt)
+    assert "NativeWind" in answer and "Animated" in answer and "```" not in answer
+    old_history = memory_for(code)[1]["history"]
+
+    # A fresh browser session opens a clean chat without removing prior context.
+    resumed = Client(origin)
+    state = resumed.answer(acao="retomar", codigo=code, mostrar_historico=False)
+    assert "historico" not in state
+    request_id = str(uuid.uuid4())
+    combined, answer = ask(resumed, example_prompt, request_id=request_id)
+    code_box = snippet_from(combined, answer)
+    assert "Animated.View" in code_box and "className=" in code_box and "style=" in code_box, combined
+    combined_memory = memory_for(code)[1]
+    assert combined_memory["snippet_quota"]["count"] == 2
+    assert combined_memory["history"][-1]["content"] == answer
+    assert resumed.answer(mensagem=example_prompt, request_id=request_id)["resposta"] == answer
+    assert memory_for(code)[1]["snippet_quota"]["count"] == 2
+
+    rejected, answer = ask(resumed, missing_prompt)
+    assert "function " not in answer
+    if "```" in answer:
+        repaired = snippet_from(rejected, answer)
+        assert "Animated.View" in repaired and "className=" in repaired, rejected
+    else:
+        # Spend the remaining slot with a separately valid snippet.
+        last_allowed, answer = ask(resumed, "Não está dando erro, só quero começar a animar a opacidade com Animated.")
+        assert "Animated.timing(" in snippet_from(last_allowed, answer)
+    assert memory_for(code)[1]["snippet_quota"]["count"] == 3
+
+    _, exhausted = ask(resumed, final_prompt)
+    assert "```" not in exhausted and exhausted.strip()
+    assert memory_for(code)[1]["snippet_quota"]["count"] == 3
+
+    # Seed the pre-change history shape without any cached topic.
+    _, legacy_code = sign_up()
+    legacy_path, legacy = memory_for(legacy_code)
+    legacy = {key: value for key, value in legacy.items()
+              if key in {"schema_version", "id", "profile", "created_at", "access_hash", "updated_at"}}
+    legacy["history"] = old_history
+    legacy_path.write_text(json.dumps(legacy, ensure_ascii=False))
+    returning_legacy = Client(origin)
+    returning_legacy.answer(acao="retomar", codigo=legacy_code, mostrar_historico=False)
+    legacy_events, legacy_answer = ask(returning_legacy, example_prompt)
+    legacy_box = snippet_from(legacy_events, legacy_answer)
+    assert "Animated.View" in legacy_box and "className=" in legacy_box, legacy_events
+
+    # The same vague question from another student has no mixed-tech context.
+    newcomer, newcomer_code = sign_up()
+    _, unrelated = ask(newcomer, example_prompt)
+    assert "```" not in unrelated and unrelated.strip()
+    assert memory_for(newcomer_code)[1].get("snippet_quota", {}).get("count", 0) == 0
+
+
+    for restricted in (
+        "Como arredondar a borda com Tailwind CSS na web? Mostre um trecho curto.",
+        "No NativeWind, quero testar o espaçamento interno. Explique em palavras, sem código.",
+    ):
+        _, prose_only = ask(newcomer, restricted)
+        assert "```" not in prose_only and "className=" not in prose_only, prose_only
+    assert memory_for(newcomer_code)[1].get("snippet_quota", {}).get("count", 0) == 0
+
+
+def exercise_snippet_race(directory, origin, second_origin):
+    student = Client(origin)
+    student.answer(acao="novo")
+    for value in ("Nome de Teste", "Turma de teste", "Unidade de teste"):
+        profile = student.answer(mensagem=value)
+
+    first = student.answer(mensagem="No NativeWind quero organizar as classes de uma View. Mostre um trecho curto.")
+    second = student.answer(mensagem="Não está dando erro, só quero começar a animar a opacidade com Animated.")
+    assert "```" in first["resposta"] and "```" in second["resposta"]
+    code = profile["codigo"]
+    identity = code.split("-", 1)[0]
+    path = directory / "memory" / f"aluno_{identity}.json"
+    assert json.loads(path.read_text())["snippet_quota"]["count"] == 2
+    another_session = Client(second_origin)
+    another_session.answer(acao="retomar", codigo=code, mostrar_historico=False)
+
+    question = "No NativeWind, quero um trecho curto para conferir o espaçamento no teste concorrente de cota."
+    ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        submitted = [pool.submit(client.events, mensagem=question, request_id=rid)
+                     for client, rid in zip((student, another_session), ids)]
+        streams = [future.result() for future in submitted]
+    results = []
+    for stream in streams:
+        events = [event for _, event in stream]
+        assert events[0]["type"] == "start" and events[-1]["type"] == "done", events
+        results.append(events[-1]["resposta"])
+        visible = [event["text"] for event in events if event["type"] == "delta"]
+        assert "".join(visible).rstrip() == results[-1], events
+    assert sum("```" in answer for answer in results) == 1, results
+
+    updated = json.loads(path.read_text())
+    assert updated["snippet_quota"]["count"] == 3
+    assert len(updated["history"]) == 8
+    assert {updated["history"][5]["content"], updated["history"][7]["content"]} == set(results)
+    before_replays = len(calls(directory))
+    for client, rid, answer in zip((student, another_session), ids, results):
+        assert client.answer(mensagem=question, request_id=rid)["resposta"] == answer
+    assert len(calls(directory)) == before_replays
+
+
 def exercise_teaching_materials(directory, origin):
     student = Client(origin)
     student.answer(acao="novo")
@@ -513,6 +660,16 @@ def main():
         stage_app(directory / "web", None)
         with app_server(directory, command, {}) as origin:
             exercise_guided_chat(directory, origin)
+            exercise_combined_chat(directory, origin)
+
+        directory = Path(temp) / "cota-concorrente"
+        second_server = directory / "segundo-servidor"
+        second_server.mkdir(parents=True)
+        stage_app(directory / "web", None)
+        stage_app(second_server / "web", None)
+        shared = {"JOIA_MEMORY_DIR": str(directory / "memory"), "JOIA_TEST_CALLS": str(directory / "calls.jsonl")}
+        with app_server(directory, command, {}) as origin, app_server(second_server, command, shared) as second_origin:
+            exercise_snippet_race(directory, origin, second_origin)
 
         directory = Path(temp) / "referencias-professor"
         directory.mkdir()

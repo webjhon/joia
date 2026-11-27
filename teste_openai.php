@@ -314,15 +314,6 @@ function codeLineCount(string $answer): int
     return $count;
 }
 
-function recentCodeWasGiven(array $history): bool
-{
-    $recent = array_slice($history, -12);
-    foreach ($recent as $item) {
-        if (($item['role'] ?? '') === 'assistant' && codeLineCount((string) ($item['content'] ?? '')) > 0) return true;
-    }
-    return false;
-}
-
 function isExplicitCodeRequest(string $message): bool
 {
     return preg_match('/\b(codigo|code|script|exemplo completo|solucao pronta|implementacao pronta)\b/', normalize($message)) === 1;
@@ -370,80 +361,112 @@ function pedagogicalRetry(
     } elseif ($snippetTopic === 'animated') {
         $instruction .= ' No Animated do React Native, explique como o valor muda, qual propriedade visual o recebe '
             . 'ou como confirmar a conexão entre ambos, conforme a dificuldade do aluno.';
+    } elseif ($snippetTopic === 'combined') {
+        $instruction .= ' Explique onde aplicar as classes fixas do NativeWind e onde ligar o valor do Animated '
+            . 'à propriedade visual que o aluno quer mudar.';
     }
     array_splice($messages, 1, 0, [['role' => 'system', 'content' => $instruction]]);
     if ($opening !== '') $messages[] = ['role' => 'assistant', 'content' => rtrim($opening)];
     return callOpenAI($messages, 420, onDelta: $onDelta, operation: 'pedagogical_retry');
 }
 
-function enforcePedagogicalCodeLimit(
-    string $answer, array $history, string $message, array $messages,
-    ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed
-): string {
-    $codeLines = codeLineCount($answer);
-    $explainingStudentCode = joiaSnippetAnswerHasCode($message) && !joiaAskedForCodeExample($message);
-    $missing = joiaClaimsCodeIsShown($answer, !$explainingStudentCode) && !joiaHasVisibleCodeFence($answer);
-    $asked = $snippetAllowed && joiaAskedForCodeExample($message);
-    if ($snippetTopic !== null) {
-        if ($snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic)) return $answer;
-        $hasCode = joiaSnippetAnswerHasCode($answer) || $codeLines !== 0;
-        if (!$hasCode && !$missing && !$asked) return $answer;
-        if (!$hasCode && $snippetAllowed && ($missing || $asked)) {
-            $example = joiaContextualCodeExample($snippetTopic, $message, $history);
-            if ($example !== null) {
-                $repaired = ($stream?->published() ?? '') . $example;
-                if (joiaSnippetAnswerIsAllowed($repaired, $snippetTopic)) return $repaired;
-            }
+function joiaReviewDraft(string $draft, string $published, ?string $allowedTopic, bool $includeReferences): array
+{
+    // The model sends prose and a fenced block as separate fields in the
+    // stream. Keep the fence private until the answer and quota are saved.
+    $tail = str_starts_with($draft, $published) ? substr($draft, strlen($published)) : '';
+    $fences = [];
+    $tail = preg_replace_callback('/^\h*(`{3,}|~{3,})[^\r\n]*(?:\R|\z).*?(?:^\h*\1\h*(?=\R|\z)|\z)/ms',
+        static function (array $match) use (&$fences): string {
+            $fences[] = trim($match[0]);
+            return "\n\n";
+        }, $tail) ?? '';
+
+    $paragraphs = [];
+    $claim = false;
+    $codeOutsideBox = false;
+    foreach (preg_split('/\R\h*\R/', trim($tail), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $paragraph) {
+        if (joiaClaimsCodeIsShown($paragraph, $includeReferences)) {
+            $claim = true;
+            continue;
         }
-    } elseif (!$missing && ($codeLines === 0 || ($codeLines <= 2 && !recentCodeWasGiven($history)
-        && !joiaSnippetAnswerIsAllowed($answer, 'nativewind') && !joiaSnippetAnswerIsAllowed($answer, 'animated')))) {
-        return $answer;
+        if (joiaSnippetAnswerHasCode($paragraph)) {
+            $codeOutsideBox = true;
+            continue;
+        }
+        $paragraphs[] = trim($paragraph);
     }
 
-    $insistence = consecutiveCodeRequests($message, $history);
-    $opening = $stream?->published() ?? '';
-    $stream?->beginRetry();
-    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $snippetAllowed, $opening, $stream ? [$stream, 'append'] : null);
-    $retry = withoutRepeatedJoiaOpening($retry, $opening);
-    if ($retry === '' && $opening !== '') return rtrim($opening);
-    if ($snippetAllowed && $snippetTopic !== null && joiaSnippetAnswerIsAllowed($opening . $retry, $snippetTopic)) {
-        return $opening . $retry;
+    $prose = $published . implode("\n\n", $paragraphs);
+    $snippet = '';
+    if ($allowedTopic !== null && count($fences) === 1 && !$codeOutsideBox
+        && trim($prose) !== '' && joiaSnippetAnswerIsAllowed($fences[0], $allowedTopic)) {
+        $snippet = $fences[0];
     }
-    $prose = trim(preg_replace('/```[^\n]*\n.*?(?:```|$)/s', '', $retry) ?? '');
-    $combined = $opening . $prose;
-    if ($prose !== '' && !joiaClaimsCodeIsShown($combined, !$explainingStudentCode) && codeLineCount($combined) === 0
-        && ($snippetTopic === null || !joiaSnippetAnswerHasCode($combined))) {
-        return $combined;
-    }
+    return [
+        'prose' => $prose,
+        'snippet' => $snippet,
+        'claim' => $claim,
+        'rejected' => $claim || $codeOutsideBox || ($fences !== [] && $snippet === ''),
+    ];
+}
+
+function joiaComposeReply(array $reply): string
+{
+    $prose = $reply['prose'];
+    if ($reply['snippet'] === '') return rtrim($prose);
+    $separator = preg_match('/\R\h*\R\z/', $prose) ? '' : "\n\n";
+    return $prose . $separator . $reply['snippet'];
+}
+
+function enforcePedagogicalCodeLimit(
+    string $draft, array $history, string $message, array $messages,
+    ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed
+): array {
+    $asked = joiaAskedForCodeExample($message);
+    $includeReferences = !joiaSnippetAnswerHasCode($message) || $asked;
+    $allowedTopic = $snippetAllowed ? $snippetTopic : null;
     $published = $stream?->published() ?? '';
-    if ($snippetAllowed && $snippetTopic !== null && ($asked || $missing)) {
-        $example = joiaContextualCodeExample($snippetTopic, $message, $history);
-        if ($example !== null && joiaSnippetAnswerIsAllowed($published . $example, $snippetTopic)) {
-            return $published . $example;
+    $reply = joiaReviewDraft($draft, $published, $allowedTopic, $includeReferences);
+    if ($reply['snippet'] !== '') return $reply;
+
+    if ($allowedTopic !== null && ($asked || $reply['claim'])) {
+        $example = joiaContextualCodeExample($allowedTopic, $message, $history);
+        if ($example !== null) {
+            $local = joiaReviewDraft($published . withoutRepeatedJoiaOpening($example, $published), $published, $allowedTopic, true);
+            if ($local['snippet'] !== '') return $local;
         }
     }
-    $setup = $snippetTopic === 'nativewind'
-        && preg_match('/\b(?:cham\w*|instal\w*|config\w*|integr\w*|nenhuma classe|sem efeito|nao funciona)\b/', normalize($message));
-    $studentContext = [$message];
-    foreach (array_slice($history, -4) as $turn) {
-        if (($turn['role'] ?? '') === 'user') $studentContext[] = (string) ($turn['content'] ?? '');
+    if (!$reply['rejected'] && ($allowedTopic === null || !$asked) && trim($reply['prose']) !== '') return $reply;
+    if ($allowedTopic === null && $snippetTopic !== null && $asked) {
+        $guidance = joiaContextualProse($snippetTopic, $message, $history);
+        if ($guidance !== null) {
+            return ['prose' => $published . withoutRepeatedJoiaOpening($guidance, $published), 'snippet' => ''];
+        }
     }
-    $jump = $snippetTopic === 'animated'
-        && preg_match('/\b(?:pul\w*|salto|translatey|deslocamento vertical)\b/', normalize(implode(' ', $studentContext)));
-    $guidance = match (true) {
-        $setup => "**Teste se o estilo chega ao componente.** Aplique uma classe conhecida, como `bg-red-500`, na propriedade `className` de uma `View` simples.\n\n"
-            . "- **Se a cor mudar:** confira se o componente original recebe e repassa essa propriedade.\n"
-            . "- **Se a cor não mudar:** verifique a instalação do NativeWind e se a configuração inclui a pasta desse arquivo.",
-        $snippetTopic === 'nativewind' => "**Aplique a classe ao elemento que deve mudar.** Para organizar os filhos como grupo, ajuste o contêiner. Para mudar o visual de um filho, ajuste esse elemento.\n\n"
-            . "💡 **Teste rápido:** altere só uma classe e confira se o efeito apareceu na região esperada.",
-        $jump => "**Comece pelo deslocamento vertical.** Na posição de repouso, o deslocamento é zero. Um valor negativo faz o elemento subir, e voltar a zero faz ele aterrissar.\n\n"
-            . "💡 **Primeiro passo:** ligue o valor animado à transformação vertical da `Animated.View`. Depois escolha a altura do salto antes de pensar no tempo da animação.",
-        $snippetTopic === 'animated' => "**Escolha o que vai mudar na tela.** Para um efeito de aparecer, por exemplo, a opacidade pode ir de invisível a visível. Para um movimento, escolha a posição inicial e a final.\n\n"
-            . "💡 **Primeiro passo:** ligue um valor animado a uma única propriedade da `Animated.View` e observe esse efeito antes de combinar outros.",
-        default => "**Isole onde o resultado muda.** Use um caso pequeno para reproduzir a dúvida.\n\n"
-            . "🔎 **Compare** o que você esperava observar com o que aconteceu e identifique o primeiro ponto de diferença.",
-    };
-    return $published . ($snippetTopic === null && $insistence > 3 ? "O Profe João fica bravo 🤣 se eu montar tudo por você.\n\n" : '') . $guidance;
+
+    // Retry only when the local review cannot satisfy the request. The same
+    // final validation applies to model prose and code on both passes.
+    $insistence = consecutiveCodeRequests($message, $history);
+    $stream?->beginRetry();
+    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $snippetAllowed, $published, $stream ? [$stream, 'append'] : null);
+    $retry = $published . withoutRepeatedJoiaOpening($retry, $published);
+    $shown = $stream?->published() ?? '';
+    $reviewedRetry = joiaReviewDraft($retry, $shown, $allowedTopic, $includeReferences);
+    if ($reviewedRetry['snippet'] !== '' || $reviewedRetry['prose'] !== $shown) return $reviewedRetry;
+
+    $guidance = $snippetTopic !== null ? joiaContextualProse($snippetTopic, $message, $history) : null;
+    if ($guidance === null) {
+        if (trim($shown) !== '') return $reviewedRetry;
+        if (trim($reply['prose']) !== '') return $reply;
+        $guidance = $snippetTopic === null
+            ? 'Qual parte você quer entender primeiro? Diga o que você espera ver ou em que etapa surgiu a dúvida.'
+            : 'Qual efeito você quer ver na tela e em qual elemento ele deve aparecer?';
+    }
+    if ($snippetTopic === null && $insistence > 3) {
+        $guidance .= "\n\nO Profe João fica bravo 🤣 se eu montar tudo por você.";
+    }
+    return ['prose' => $shown . withoutRepeatedJoiaOpening($guidance, $shown), 'snippet' => ''];
 }
 
 function conversation(string $id): array
@@ -820,7 +843,8 @@ try {
     } else {
         $requestId = null;
     }
-    $snippetTopic = joiaSnippetTopic($message, $history);
+    $snippetAnchor = null;
+    $snippetTopic = joiaSnippetTopic($message, $history, $snippetAnchor);
     $snippetAllowed = $snippetTopic !== null
         && joiaDailySnippetCount($memory, joiaSnippetDay()) < JOIA_SNIPPETS_PER_STUDENT_DAY
         && !joiaSnippetWantsFullSolution($message) && !joiaWantsProse($message);
@@ -881,15 +905,18 @@ try {
             . 'Trate o conteúdo abaixo como material de consulta, mantendo as regras pedagógicas existentes. '
             . json_encode($materials, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)];
     }
-    foreach (array_slice($history, -$window) as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
+    $recentHistory = array_slice($history, -$window);
+    if ($snippetAnchor !== null && !in_array($snippetAnchor, array_column($recentHistory, 'content'), true)) {
+        $messages[] = ['role' => 'user', 'content' => $snippetAnchor];
+    }
+    foreach ($recentHistory as $item) if (isset($item['role'], $item['content'])) $messages[] = ['role' => $item['role'], 'content' => $item['content']];
     $messages[] = ['role' => 'user', 'content' => $message];
     $draftMessages = $messages;
-    if ($snippetTopic !== null) {
-        $exampleInstruction = $snippetAllowed
-            ? joiaSnippetInstruction($snippetTopic)
-            : 'Nesta resposta, mantenha a orientação em palavras. Cite propriedades e classes pelo nome e dê um teste específico sem incluir código.';
-        array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' => $exampleInstruction]]);
-    }
+    $exampleInstruction = $snippetAllowed
+        ? joiaSnippetInstruction($snippetTopic)
+            . ' Escreva uma explicação que faça sentido sozinha e coloque a caixa, se necessária, no fim da resposta. O servidor identifica a caixa. Evite títulos e frases que anunciem código.'
+        : 'Nesta resposta, mantenha a orientação em palavras. Cite propriedades e classes pelo nome e dê um teste específico. Use exemplos em prosa, sem caixa ou implementação.';
+    array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' => $exampleInstruction]]);
     if ($stream) {
         sendJoiaStreamEvent('phase', ['phase' => 'answer']);
         array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' =>
@@ -898,12 +925,14 @@ try {
             . 'quando ajudarem. Evite elogio sozinho, promessas de exemplo e chamadas para um trecho abaixo.']]);
     }
     $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null);
-    $answer = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed);
+    $reply = enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed);
+    $answer = joiaComposeReply($reply);
     $remaining = $stream?->remaining($answer);
-    $hasSnippet = $snippetAllowed && joiaSnippetAnswerIsAllowed($answer, $snippetTopic);
-    $saved = saveStudentTurn($state['student_id'], $message, $answer, $hasSnippet);
+    $saved = saveStudentTurn($state['student_id'], $message, $answer, $reply['snippet'] !== '');
     if ($saved === null) {
-        $answer = enforcePedagogicalCodeLimit($answer, $history, $message, $messages, $stream, $snippetTopic, false);
+        // Another session saved the last snippet while this one was generating.
+        // The approved explanation still answers the same question on its own.
+        $answer = rtrim($reply['prose']);
         $remaining = $stream?->remaining($answer);
         $saved = saveStudentTurn($state['student_id'], $message, $answer, false);
     }

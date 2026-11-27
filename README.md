@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.18**
+> **Versão atual: 1.19**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -163,11 +163,14 @@ a gerar texto.
 
 Quando ajuda a responder à dúvida, a JOIA pode mostrar uma caixa com até quatro
 linhas de NativeWind ou Animated do React Native, inclusive para quem está
-começando. São até três caixas somadas por aluno por dia, no horário de São
+começando. A caixa também pode ilustrar a combinação das duas tecnologias.
+Pedidos de continuação retomam o objetivo mais recente na conversa. São até
+três caixas somadas por aluno por dia, no horário de São
 Paulo. O contador fica na memória privada do aluno e vale em outros navegadores
 ou dispositivos quando ele usa seu código. Respostas que ficam em prosa e
 reenvios do mesmo pedido não consomem a cota. A interface exibe o código aprovado
-em uma caixa com a linguagem e o destaque de sintaxe.
+em uma caixa com a linguagem e o destaque de sintaxe, depois que a cota e a
+resposta são salvas juntas.
 
 ## Consumo da API
 

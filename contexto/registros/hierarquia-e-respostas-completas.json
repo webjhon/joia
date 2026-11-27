@@ -12,6 +12,7 @@
     "Explicar a relação entre contêiner e filhos diretos com as classes corretas. Para os pedidos pertinentes de NativeWind, usar um exemplo revisado de quatro linhas com a cota do servidor.",
     "Usar o motivo de término da API e a revisão de prosa para identificar cortes ou listas sem os itens anteriores. Limitar a recuperação por modelo a uma tentativa e preservar os parágrafos já enviados.",
     "Reconciliar o sufixo do texto confirmado no navegador sem redesenhar os parágrafos exibidos. Renderizar caixas, listas e tabelas como estruturas completas.",
-    "Validar o fluxo com histórico sintético e API simulada. Manter README e wiki como referência da arquitetura atual."
+    "Validar o fluxo com histórico sintético e API simulada. Manter README e wiki como referência da arquitetura atual.",
+    "A explicação local deste trabalho cobre a hierarquia de Views. Para revisões pedagógicas e técnicas, aplicar o critério de causa comum e cobertura de casos equivalentes documentado em revisao-pedagogica-causa-raiz.json."
   ]
 }

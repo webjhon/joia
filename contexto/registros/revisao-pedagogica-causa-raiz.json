@@ -1,0 +1,14 @@
+{
+  "titulo": "Revisões pedagógicas e técnicas pela causa raiz",
+  "situacao": "aprovada",
+  "fonte": "Orientação permanente do professor após a revisão da JOIA v1.21",
+  "termos": ["pedagogia", "técnica", "causa raiz", "classe de falha", "regressão", "casos equivalentes", "generalização", "View", "AGENTS.md"],
+  "pedidos": [
+    "Resumo: ao revisar um problema pedagógico e técnico, investigar o que causou a falha e resolver a mesma classe de problema em situações semelhantes."
+  ],
+  "decisoes": [
+    "O exemplo relatado serve de reprodução inicial. Rastrear em que etapa a resposta se afasta do pedido ou da evidência do aluno, da interpretação e recuperação de contexto até a geração, revisão e apresentação.",
+    "Corrigir o comportamento compartilhado que causa a falha. Usar a correção específica de um conceito como conteúdo didático quando fizer sentido, com cobertura explicitamente delimitada.",
+    "Validar o caso original e casos equivalentes com assuntos ou formulações diferentes. Registrar o alcance verificado e qualquer parte da causa que ainda esteja pendente."
+  ]
+}

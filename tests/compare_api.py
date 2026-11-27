@@ -583,6 +583,107 @@ def exercise_snippet_race(directory, origin, second_origin):
     assert len(calls(directory)) == before_replays
 
 
+def exercise_hierarchy_and_complete_replies(directory, origin):
+    def sign_up():
+        student = Client(origin)
+        student.answer(acao="novo")
+        for value in ("Pessoa Sintética", "Turma de teste", "Unidade de teste"):
+            access = student.answer(mensagem=value)
+        identity = access["codigo"].split("-", 1)[0]
+        return student, directory / "memory" / f"aluno_{identity}.json"
+
+    def ask(student, question, **fields):
+        events = [event for _, event in student.events(mensagem=question, **fields)]
+        assert events[0]["type"] == "start" and events[-1]["type"] == "done", events
+        assert all(event["type"] != "error" for event in events), events
+        deltas = [event["text"] for event in events if event["type"] == "delta"]
+        answer = events[-1]["resposta"]
+        assert "".join(deltas).rstrip() == answer, events
+        return events, answer
+
+    def quota(path):
+        memory = json.loads(path.read_text())
+        return memory.get("snippet_quota", {}).get("count", 0)
+
+    def assert_hierarchy(answer):
+        text = answer.casefold()
+        assert all(word in text for word in ("pai", "mãe", "mesm", "filh", "diret")), answer
+        assert all(word not in text for word in ("align-items-center", "botão", "alerta")), answer
+        assert not any(line.lstrip().startswith("4.") for line in text.splitlines()), answer
+
+    student, path = sign_up()
+    before = len(calls(directory))
+    question = (
+        "Já montei minha arquitetura no react native usando expo, preciso agora implementar algumas classes, "
+        "já sei usar o classname, porém, não entendo, a questão da hierarquia, de views mães e view pais, "
+        "como distribuo o que tem que ser na mãe e o que tem que ser no pai?"
+    )
+    events, answer = ask(student, question)
+    assert_hierarchy(answer)
+    assert "```" not in answer and quota(path) == 0, answer
+    assert any("React Native Visual" in title for title in events[-1].get("referencias", [])), events
+
+    follow_up = "poderia me dar um exemplo e explicar/"
+    correction = "não entendi, eu pedi um exemplo em código e me explicar esse código cadê?"
+    for count, message in enumerate((follow_up, correction, follow_up), start=1):
+        request_id = str(uuid.uuid4())
+        events, answer = ask(student, message, request_id=request_id)
+        assert_hierarchy(answer)
+        assert answer.count("```") == 2, events
+        before_box, box, after_box = answer.split("```")
+        language, *source_lines = box.splitlines()
+        assert language == "jsx" and 1 <= len(source_lines) <= 4, box
+        assert len(source_lines) >= 3 and "<View" in source_lines[0] and "className=" in source_lines[0], box
+        assert "items-center" in source_lines[0] and "</View>" in source_lines[-1], box
+        assert any("<Text" in line or "<View" in line for line in source_lines[1:-1]), box
+        assert "items-center" in before_box + after_box and "filh" in (before_box + after_box).casefold(), answer
+        assert sum(event.get("text", "").count("```") == 2 for event in events) == 1, events
+        assert quota(path) == count
+        assert student.answer(mensagem=message, request_id=request_id)["resposta"] == answer
+        assert quota(path) == count
+
+    _, exhausted = ask(student, correction)
+    assert_hierarchy(exhausted)
+    assert "```" not in exhausted and quota(path) == 3, exhausted
+    assert len(calls(directory)) == before, calls(directory)[before:]
+
+    opening = "Compare o acumulador depois de cada entrada."
+    closing = "Faça um teste com uma lista vazia e confirme que o valor inicial permaneceu."
+    length_limit = "Como reconhecer que um acumulador parou no estado esperado?"
+    incomplete_stop = "Como verificar o resultado final de um acumulador?"
+    for question, streamed in ((length_limit, True), (length_limit, False), (incomplete_stop, True)):
+        student, path = sign_up()
+        before = len(calls(directory))
+        request_id = str(uuid.uuid4())
+        if streamed:
+            events, answer = ask(student, question, request_id=request_id)
+            assert [event["type"] for event in events].count("retry") == 1, events
+            first_delta = next(index for index, event in enumerate(events) if event["type"] == "delta")
+            first_retry = next(index for index, event in enumerate(events) if event["type"] == "retry")
+            assert first_delta < first_retry and events[first_delta]["text"].rstrip() == opening, events
+        else:
+            answer = student.answer(mensagem=question, request_id=request_id)["resposta"]
+        assert answer == f"{opening}\n\n{closing}", answer
+        trace = calls(directory)[before:]
+        assert [item["kind"] for item in trace] == ["chat", "pedagogical_retry"], trace
+        assert all(item["stream"] == streamed for item in trace), trace
+        memory = json.loads(path.read_text())
+        assert [turn["content"] for turn in memory["history"][-2:]] == [question, answer], memory
+        assert student.answer(mensagem=question, request_id=request_id)["resposta"] == answer
+        assert len(calls(directory)) == before + 2
+
+    student, _ = sign_up()
+    for question, expected in (
+        ("Como organizar as etapas de validação de um formulário?", "Valide cada campo"),
+        ("Como aplico o início da animação no Animated?", "Prepare o valor animado"),
+    ):
+        before = len(calls(directory))
+        events, answer = ask(student, question)
+        assert answer.startswith(expected), events
+        assert all(word not in answer for word in ("4.", "Botão", "definir o layout e o", "function Jump")), events
+        assert [item["kind"] for item in calls(directory)[before:]] == ["chat", "pedagogical_retry"]
+
+
 def exercise_teaching_materials(directory, origin):
     student = Client(origin)
     student.answer(acao="novo")
@@ -761,6 +862,7 @@ def main():
         with app_server(directory, command, {}) as origin:
             exercise_guided_chat(directory, origin)
             exercise_combined_chat(directory, origin)
+            exercise_hierarchy_and_complete_replies(directory, origin)
 
         directory = Path(temp) / "cota-concorrente"
         second_server = directory / "segundo-servidor"

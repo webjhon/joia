@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.20</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -60,7 +60,7 @@
 </section>
 <section id="streaming">
 <h2>Como uma resposta progride</h2>
-<p>Para o chat progressivo, o navegador solicita <code>application/x-ndjson</code>. Cada linha é um objeto JSON. O backend inicia o fluxo antes de buscar contexto, preserva a abertura já publicada ao reformular e só libera a caixa de código após validar o conteúdo e persistir a resposta com a cota.</p>
+<p>Para o chat progressivo, o navegador solicita <code>application/x-ndjson</code>. Cada linha é um objeto JSON. O backend inicia o fluxo antes de buscar contexto e só libera a caixa de código após validar o conteúdo e persistir a resposta com a cota. O adaptador lê o <code>finish_reason</code> da API no streaming e em JSON. A revisão trata cortes e listas que começam no meio, usando uma única reformulação quando a recuperação local não resolve e preservando os parágrafos já publicados.</p>
 <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Evento</th><th scope="col">Uso na interface</th></tr></thead><tbody>
 <tr><td><code>start</code></td><td>Confirma o recebimento e sinaliza o preparo de contexto.</td></tr>
 <tr><td><code>phase</code></td><td>Dá visibilidade à preparação da explicação.</td></tr>
@@ -78,7 +78,7 @@
 <li><code>upload_temp.php</code> é uma rota legada de imagens e áudio. O chat atual funciona pelo endpoint principal e não envia anexos à OpenAI.</li></ul>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.20</span><a href="inteligencia-artificial.html">Inteligência artificial →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="inteligencia-artificial.html">Inteligência artificial →</a></footer>
     </main>
   </div>
 </div>

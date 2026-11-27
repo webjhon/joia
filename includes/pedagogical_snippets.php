@@ -173,12 +173,82 @@ function joiaWantsProse(string $message): bool
 function joiaAskedForCodeExample(string $message): bool
 {
     $text = normalize($message);
-    if (joiaWantsProse($message)
-        || preg_match('/\b(?:explic\w*|revis\w*|analis\w*) (?:o |a )?(?:meu|minha|este|esse|esta|essa) (?:codigo|trecho|implementacao)\b/', $text)) {
+    if (joiaWantsProse($message)) return false;
+    if (preg_match('/\b(?:(?:pedi|quero|queria) (?:um )?exemplo em codigo|(?:codigo|trecho) cade|cade (?:o )?(?:codigo|trecho))\b/', $text)) {
+        return true;
+    }
+    if (preg_match('/\b(?:explic\w*|revis\w*|analis\w*) (?:o |a )?(?:meu|minha|este|esse|esta|essa) (?:codigo|trecho|implementacao)\b/', $text)) {
         return false;
     }
-    return preg_match('/\b(?:exemplo|trecho|sintaxe|fragmento|pode mostrar|como (?:comeco|faco|escrevo|aplico|coloco|combino|fica)|'
+    return preg_match('/\b(?:exemplo|trecho|sintaxe|fragmento|(?:pode|poderia) (?:me )?mostrar|como (?:comeco|faco|escrevo|aplico|coloco|combino|fica)|'
         . 'por onde comeco|na pratica|(?:quero|da|mande|mostre|preciso de|vi|vejo|veio) (?:so (?:um )?|um |o |nenhum )?codigo)\b/', $text) === 1;
+}
+
+function joiaViewHierarchyQuestion(string $text): bool
+{
+    $parentOrChild = '\b(?:views? (?:pai|pais|mae|maes|filh[ao]s?)|(?:pai|pais|mae|maes|filh[ao]s?) (?:das? )?views?)\b';
+    $framework = '\b(?:react native|expo|native ?wind)\b';
+    $hasContext = preg_match('/' . $parentOrChild . '/', $text)
+        || (preg_match('/' . $framework . '/', $text)
+            && preg_match('/\b(?:hierarquia (?:de|das|dos|entre) (?:views?|componentes?)|pai|pais|mae|maes|filh[ao]s?)\b/', $text));
+    return $hasContext && preg_match('/\b(?:hierarquia|parentesco|relacao|diferenca|mesma coisa|sao iguais|'
+        . 'distribu\w*|qual (?:e )?a funcao|como (?:organizar|separar|funciona)|classes? (?:vao|ficam|entram)|'
+        . 'o que (?:e|significa|coloc\w*|vai|fica|tem que ser))\b/', $text) === 1;
+}
+
+function joiaViewHierarchyFollowUp(string $text): bool
+{
+    if (str_word_count($text) > 26) return false;
+    // A request naming a different example belongs to that subject, even if
+    // a learner was just discussing hierarchy in the same technology.
+    if (preg_match('/\b(?:exemplo|trecho|fragmento|codigo|sintaxe)(?: (?:simples|curto|pequeno|pratico))? '
+        . '(?:de|do|da|com|para|sobre) (?!(?:codigo|isso|isto|diss[eo]|(?:ess[ae]|est[ae]) (?:ideia|parte|situacao))\b)/', $text)) return false;
+    return joiaAskedForCodeExample($text) || preg_match('/\bexemplo (?:em palavras|conceitual|sem codigo)\b/', $text) === 1
+        || preg_match('/\b(?:(?:(?:pode|poderia) )?(?:me )?explic(?:a|ar)(?: melhor| isso)?|como funciona isso)(?: por favor)?$/D', $text) === 1;
+}
+
+function joiaViewHierarchyContext(string $message, array $history): bool
+{
+    $current = joiaSnippetTurn($message);
+    if ($current['boundary'] || in_array('nativewind', $current['excluded'], true)
+        || in_array($current['topic'], ['animated', 'combined'], true) || joiaSnippetWantsFullSolution($message)
+        || preg_match('/\b(?:css puro|css na web|react web|navegador|dom|android nativo|jetpack compose|uikit|swiftui|view xml)\b/', $current['text'])) {
+        return false;
+    }
+    if (joiaViewHierarchyQuestion($current['text'])) return true;
+    if (!joiaViewHierarchyFollowUp($current['text'])) return false;
+
+    foreach (array_reverse(array_slice($history, -8)) as $turn) {
+        if (($turn['role'] ?? null) !== 'user') continue;
+        $previous = joiaSnippetTurn((string) ($turn['content'] ?? ''));
+        if ($previous['boundary'] || in_array($previous['topic'], ['animated', 'combined'], true)
+            || in_array('nativewind', $previous['excluded'], true)) return false;
+        if (joiaViewHierarchyQuestion($previous['text'])) return true;
+        if ($previous['topic'] !== null || !joiaViewHierarchyFollowUp($previous['text'])) return false;
+    }
+    return false;
+}
+
+function joiaViewHierarchyExampleParts(): array
+{
+    $prose = '**`View` pai e `View` mãe são dois nomes para o mesmo papel.** É o contêiner dos elementos que estão diretamente dentro dele. '
+        . 'Uma `View` também pode ser filha do contêiner acima e pai dos elementos que ela própria contém.' . "\n\n"
+        . '**No contêiner**, coloque o layout que organiza o grupo. No NativeWind, `flex-col` põe os filhos em coluna. '
+        . '`items-center` alinha os filhos diretos na horizontal nessa coluna, e `p-4` dá espaço entre o conteúdo e a borda.' . "\n\n"
+        . '**No filho**, coloque o estilo daquele elemento. Por exemplo, `text-lg` no `Text` do título aumenta a fonte do título. '
+        . 'A descrição continua com o tamanho de fonte dela. Se quiser mover o grupo, ajuste a `View` que envolve os dois.';
+    $code = "<View className=\"flex-col items-center p-4\">\n  <Text className=\"text-lg\">Título</Text>\n  <Text>Descrição</Text>\n</View>";
+    return [$prose, $code];
+}
+
+function joiaExplainViewHierarchy(string $message, array $history, bool $snippetAllowed): ?string
+{
+    if (!joiaViewHierarchyContext($message, $history)) return null;
+    [$prose, $code] = joiaViewHierarchyExampleParts();
+    if (!$snippetAllowed || !joiaAskedForCodeExample($message) || joiaSnippetTopic($message, $history) !== 'nativewind') {
+        return $prose;
+    }
+    return "{$prose}\n\n```jsx\n{$code}\n```";
 }
 
 function joiaSnippetExampleRequests(string $topic, string $message, array $history): array
@@ -198,6 +268,10 @@ function joiaSnippetExampleRequests(string $topic, string $message, array $histo
 
 function joiaSnippetExampleParts(string $topic, string $message, array $history): ?array
 {
+    if ($topic === 'nativewind' && joiaViewHierarchyContext($message, $history)) {
+        return joiaViewHierarchyExampleParts();
+    }
+
     $requests = joiaSnippetExampleRequests($topic, $message, $history);
     $motion = null;
     $style = null;

@@ -135,6 +135,12 @@ function joiaDailySnippetCount(array $memory, string $day): int
     return ($quota['day'] ?? null) === $day ? max(0, (int) ($quota['count'] ?? 0)) : 0;
 }
 
+function joiaStudentMayUseSnippet(array $memory, string $message): bool
+{
+    return joiaDailySnippetCount($memory, joiaSnippetDay()) < JOIA_SNIPPETS_PER_STUDENT_DAY
+        && !joiaSnippetWantsFullSolution($message) && !joiaWantsProse($message);
+}
+
 function saveStudentTurn(string $id, string $message, string $answer, bool $hasSnippet): ?array
 {
     // Claim quota under the same record lock used to write the dialogue. A
@@ -220,8 +226,10 @@ function openAIApiKey(): string
     return $key;
 }
 
-function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false, ?callable $onDelta = null, string $operation = 'chat'): string
-{
+function callOpenAI(
+    array $messages, int $maxTokens = 900, bool $json = false, ?callable $onDelta = null,
+    string $operation = 'chat', ?string &$finishReason = null
+): string {
     $start = hrtime(true);
     $usage = [];
     $attempted = false;
@@ -229,6 +237,7 @@ function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false, ?
     $estimate = null;
     $errorCode = null;
     $http = null;
+    $finishReason = null;
     try {
         if (!function_exists('curl_init')) throw new RuntimeException('A extensão PHP cURL não está habilitada no servidor.');
         // Stable, shared instructions remain byte-identical at the start of
@@ -257,7 +266,7 @@ function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false, ?
             CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)]);
         $attempted = true;
         if ($onDelta !== null) {
-            $answer = readJoiaOpenAIStream($ch, $onDelta, $usage);
+            $answer = readJoiaOpenAIStream($ch, $onDelta, $usage, $finishReason);
         } else {
             $raw = curl_exec($ch);
             $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -272,10 +281,15 @@ function callOpenAI(array $messages, int $maxTokens = 900, bool $json = false, ?
             }
             $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
             $usage = is_array($data['usage'] ?? null) ? $data['usage'] : [];
-            $answer = trim((string) ($data['choices'][0]['message']['content'] ?? ''));
+            $choice = $data['choices'][0] ?? [];
+            if (is_string($choice['finish_reason'] ?? null)) $finishReason = $choice['finish_reason'];
+            $answer = trim((string) ($choice['message']['content'] ?? ''));
             if ($answer === '') throw new RuntimeException('A OpenAI retornou uma resposta vazia.');
         }
-        $status = 'ok';
+        if ($finishReason !== null && !in_array($finishReason, ['stop', 'length'], true)) {
+            throw new RuntimeException('A geração foi interrompida antes de concluir a resposta.');
+        }
+        $status = $finishReason === 'length' ? 'fallback' : 'ok';
         return $answer;
     } catch (Throwable $error) {
         $errorCode ??= $error instanceof JsonException ? 'json' : ($onDelta !== null ? 'stream' : 'response');
@@ -333,7 +347,8 @@ function consecutiveCodeRequests(string $message, array $history): int
 }
 
 function pedagogicalRetry(
-    array $messages, int $insistence, ?string $snippetTopic, bool $snippetAllowed, string $opening, ?callable $onDelta
+    array $messages, int $insistence, ?string $snippetTopic, bool $snippetAllowed, string $opening, ?callable $onDelta,
+    ?string &$finishReason
 ): string
 {
     $direction = $snippetTopic === null && $insistence > 3
@@ -350,7 +365,8 @@ function pedagogicalRetry(
         . 'mostre por onde começar em vez de sugerir diagnóstico. Se já compreendeu um conceito, avance para a aplicação. '
         . 'Faça uma única pergunta específica somente se faltar informação que mude a orientação. '
         . 'Evite aberturas genéricas e promessas de mostrar código. ' . $direction;
-    $instruction .= ' Quebre a explicação em parágrafos curtos. Use **negrito** para o ponto central e, se ajudar, '
+    $instruction .= ' Organize o restante em parágrafos curtos e conclua o ponto principal antes de acrescentar detalhes. '
+        . 'Comece listas numeradas pelo item 1. Use **negrito** para o ponto central e, se ajudar, '
         . 'uma dica marcada com 💡 ou uma lista curta de verificações.';
     $instruction .= $snippetAllowed && $snippetTopic !== null
         ? ' Se o aluno pediu um exemplo, entregue a caixa de código dentro do limite em vez de anunciar um trecho ausente. '
@@ -368,7 +384,7 @@ function pedagogicalRetry(
     }
     array_splice($messages, 1, 0, [['role' => 'system', 'content' => $instruction]]);
     if ($opening !== '') $messages[] = ['role' => 'assistant', 'content' => rtrim($opening)];
-    return callOpenAI($messages, 420, onDelta: $onDelta, operation: 'pedagogical_retry');
+    return callOpenAI($messages, 420, onDelta: $onDelta, operation: 'pedagogical_retry', finishReason: $finishReason);
 }
 
 function joiaReviewDraft(string $draft, string $published, ?string $allowedTopic, bool $includeReferences): array
@@ -386,21 +402,39 @@ function joiaReviewDraft(string $draft, string $published, ?string $allowedTopic
     $paragraphs = [];
     $claim = false;
     $codeOutsideBox = false;
+    $orphanedList = false;
+    $nextItem = 1;
     foreach (preg_split('/\R\h*\R/', trim($tail), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $paragraph) {
         if (joiaClaimsCodeIsShown($paragraph, $includeReferences)) {
             $claim = true;
+            $nextItem = 1;
             continue;
         }
         if (joiaSnippetAnswerHasCode($paragraph)) {
             $codeOutsideBox = true;
+            $nextItem = 1;
             continue;
+        }
+        $body = preg_replace('/\A#{1,6}\h+[^\r\n]+\R/', '', ltrim($paragraph)) ?? $paragraph;
+        if (preg_match('/\A(\d+)[.)]\h/', ltrim($body), $marker)) {
+            if ((int) $marker[1] === 1) $nextItem = 1;
+            preg_match_all('/^\h*(\d+)[.)]\h/m', $body, $items);
+            foreach ($items[1] as $number) {
+                if ((int) $number !== 1 && (int) $number !== $nextItem) {
+                    $orphanedList = true;
+                    break 2;
+                }
+                $nextItem++;
+            }
+        } else {
+            $nextItem = 1;
         }
         $paragraphs[] = trim($paragraph);
     }
 
     $prose = $published . implode("\n\n", $paragraphs);
     $snippet = '';
-    if ($allowedTopic !== null && count($fences) === 1 && !$codeOutsideBox
+    if ($allowedTopic !== null && count($fences) === 1 && !$codeOutsideBox && !$orphanedList
         && trim($prose) !== '' && joiaSnippetAnswerIsAllowed($fences[0], $allowedTopic)) {
         $snippet = $fences[0];
     }
@@ -408,7 +442,8 @@ function joiaReviewDraft(string $draft, string $published, ?string $allowedTopic
         'prose' => $prose,
         'snippet' => $snippet,
         'claim' => $claim,
-        'rejected' => $claim || $codeOutsideBox || ($fences !== [] && $snippet === ''),
+        'rejected' => $claim || $codeOutsideBox || $orphanedList || ($fences !== [] && $snippet === ''),
+        'orphaned_list' => $orphanedList,
     ];
 }
 
@@ -420,29 +455,46 @@ function joiaComposeReply(array $reply): string
     return $prose . $separator . $reply['snippet'];
 }
 
+function joiaDraftWasCut(string $draft, ?string $finishReason): bool
+{
+    return $finishReason === 'length' || preg_match('/\b(?:e (?:o|a|os|as|um|uma)|'
+        . 'ou|para|porque|mas|que|pel[oa]s?|durante|enquanto)\z/iu', rtrim($draft)) === 1;
+}
+
+function joiaCompleteOpening(string $draft): string
+{
+    $opening = '';
+    foreach (preg_split('/\R\h*\R/', trim($draft), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $paragraph) {
+        if (!joiaParagraphMayBePublished($paragraph)) break;
+        $opening .= trim($paragraph) . "\n\n";
+    }
+    return $opening;
+}
+
 function enforcePedagogicalCodeLimit(
     string $draft, array $history, string $message, array $messages,
-    ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed
+    ?JoiaAnswerStream $stream, ?string $snippetTopic, bool $snippetAllowed, ?string $finishReason
 ): array {
     $asked = joiaAskedForCodeExample($message);
     $includeReferences = !joiaSnippetAnswerHasCode($message) || $asked;
     $allowedTopic = $snippetAllowed ? $snippetTopic : null;
-    $published = $stream?->published() ?? '';
-    $reply = joiaReviewDraft($draft, $published, $allowedTopic, $includeReferences);
+    $cut = joiaDraftWasCut($draft, $finishReason);
+    $opening = $stream?->published() ?? ($cut ? joiaCompleteOpening($draft) : '');
+    $reply = joiaReviewDraft($cut ? $opening : $draft, $opening, $allowedTopic, $includeReferences);
     if ($reply['snippet'] !== '') return $reply;
 
     if ($allowedTopic !== null && ($asked || $reply['claim'])) {
         $example = joiaContextualCodeExample($allowedTopic, $message, $history);
         if ($example !== null) {
-            $local = joiaReviewDraft($published . withoutRepeatedJoiaOpening($example, $published), $published, $allowedTopic, true);
+            $local = joiaReviewDraft($opening . withoutRepeatedJoiaOpening($example, $opening), $opening, $allowedTopic, true);
             if ($local['snippet'] !== '') return $local;
         }
     }
-    if (!$reply['rejected'] && ($allowedTopic === null || !$asked) && trim($reply['prose']) !== '') return $reply;
+    if (!$cut && !$reply['rejected'] && ($allowedTopic === null || !$asked) && trim($reply['prose']) !== '') return $reply;
     if ($allowedTopic === null && $snippetTopic !== null && $asked) {
         $guidance = joiaContextualProse($snippetTopic, $message, $history);
         if ($guidance !== null) {
-            return ['prose' => $published . withoutRepeatedJoiaOpening($guidance, $published), 'snippet' => ''];
+            return ['prose' => $opening . withoutRepeatedJoiaOpening($guidance, $opening), 'snippet' => ''];
         }
     }
 
@@ -450,14 +502,22 @@ function enforcePedagogicalCodeLimit(
     // final validation applies to model prose and code on both passes.
     $insistence = consecutiveCodeRequests($message, $history);
     $stream?->beginRetry();
-    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $snippetAllowed, $published, $stream ? [$stream, 'append'] : null);
-    $retry = $published . withoutRepeatedJoiaOpening($retry, $published);
-    $shown = $stream?->published() ?? '';
-    $reviewedRetry = joiaReviewDraft($retry, $shown, $allowedTopic, $includeReferences);
-    if ($reviewedRetry['snippet'] !== '' || $reviewedRetry['prose'] !== $shown) return $reviewedRetry;
+    $retryReason = null;
+    $retry = pedagogicalRetry($messages, $insistence, $snippetTopic, $snippetAllowed, $opening,
+        $stream ? [$stream, 'append'] : null, $retryReason);
+    $retry = withoutRepeatedJoiaOpening($retry, $opening);
+    $retryCut = joiaDraftWasCut($retry, $retryReason);
+    $shown = $stream?->published() ?? ($opening . ($retryCut ? joiaCompleteOpening($retry) : ''));
+    $reviewedRetry = joiaReviewDraft($retryCut ? $shown : $opening . $retry, $shown, $allowedTopic, $includeReferences);
+    if ($reviewedRetry['snippet'] !== '' || (!$reviewedRetry['orphaned_list'] && $reviewedRetry['prose'] !== $shown)) {
+        return $reviewedRetry;
+    }
 
     $guidance = $snippetTopic !== null ? joiaContextualProse($snippetTopic, $message, $history) : null;
     if ($guidance === null) {
+        if ($retryCut) {
+            return ['prose' => $shown . 'A explicação foi interrompida. Você pode pedir para continuar deste ponto.', 'snippet' => ''];
+        }
         if (trim($shown) !== '') return $reviewedRetry;
         if (trim($reply['prose']) !== '') return $reply;
         $guidance = $snippetTopic === null
@@ -481,9 +541,7 @@ function joiaGenerateStudentReply(
         && !preg_match('/\b(?:native ?wind|classname|classes?|cores?|padding|margem|utilitarias)\b/', $question)) {
         $snippetTopic = 'animated';
     }
-    $snippetAllowed = $snippetTopic !== null
-        && joiaDailySnippetCount($memory, joiaSnippetDay()) < JOIA_SNIPPETS_PER_STUDENT_DAY
-        && !joiaSnippetWantsFullSolution($message) && !joiaWantsProse($message);
+    $snippetAllowed = $snippetTopic !== null && joiaStudentMayUseSnippet($memory, $message);
     $messages = [['role' => 'system', 'content' => systemPrompt()], ['role' => 'system', 'content' => 'Perfil confirmado: ' . json_encode($memory['profile'], JSON_UNESCAPED_UNICODE) . '. Continue o suporte sem repetir o cadastro.']];
     $window = HISTORY_WINDOW;
     $vectorDirectory = getenv('JOIA_VECTOR_DIR');
@@ -568,12 +626,14 @@ function joiaGenerateStudentReply(
         sendJoiaStreamEvent('phase', ['phase' => 'answer']);
         array_splice($draftMessages, 1, 0, [['role' => 'system', 'content' =>
             'Escreva primeiro uma resposta direta de uma ou duas frases completas, em um parágrafo curto. '
-            . 'Deixe uma linha em branco antes da próxima parte. Use seções, listas ou exemplos depois desse parágrafo, '
+            . 'Conclua a explicação central antes de acrescentar detalhes. Deixe uma linha em branco antes da próxima parte. '
+            . 'Use seções, listas iniciadas no item 1 ou exemplos depois desse parágrafo, '
             . 'quando ajudarem. Evite elogio sozinho, promessas de exemplo e chamadas para um trecho abaixo.']]);
     }
-    $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null);
+    $finishReason = null;
+    $draft = callOpenAI($draftMessages, onDelta: $stream ? [$stream, 'append'] : null, finishReason: $finishReason);
     return [
-        enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed),
+        enforcePedagogicalCodeLimit($draft, $history, $message, $messages, $stream, $snippetTopic, $snippetAllowed, $finishReason),
         $references,
     ];
 }
@@ -958,16 +1018,27 @@ try {
 
     $localAnswer = joiaTeachingMaterialAnswer($message, $history);
     $codeContext = null;
-    if ($localAnswer === null) {
-        $codeContext = joiaTechnicalCodeContext($message, $history);
-        $binding = joiaExplainStyleBinding($message, $codeContext);
-        if ($binding !== null) $localAnswer = ['resposta' => $binding, 'referencias' => []];
-    }
+    $reply = null;
+    $references = [];
     if ($localAnswer !== null) {
-        joiaMetric('chat', ['status' => 'skipped']);
-        if ($stream) sendJoiaStreamEvent('phase', ['phase' => 'answer']);
         $reply = ['prose' => $localAnswer['resposta'], 'snippet' => ''];
         $references = $localAnswer['referencias'];
+    } else {
+        $snippetAllowed = joiaStudentMayUseSnippet($memory, $message);
+        $hierarchy = joiaExplainViewHierarchy($message, $history, $snippetAllowed);
+        if ($hierarchy !== null) {
+            $reply = joiaReviewDraft($hierarchy, '', $snippetAllowed ? 'nativewind' : null, true);
+            $references = array_column(joiaSelectTeachingMaterials($message, $history), 'titulo');
+        }
+    }
+    if ($reply === null) {
+        $codeContext = joiaTechnicalCodeContext($message, $history);
+        $binding = joiaExplainStyleBinding($message, $codeContext);
+        if ($binding !== null) $reply = ['prose' => $binding, 'snippet' => ''];
+    }
+    if ($reply !== null) {
+        joiaMetric('chat', ['status' => 'skipped']);
+        if ($stream) sendJoiaStreamEvent('phase', ['phase' => 'answer']);
     } else {
         [$reply, $references] = joiaGenerateStudentReply($message, $memory, $history, $codeContext, $stream);
     }

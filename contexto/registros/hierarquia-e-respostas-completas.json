@@ -1,0 +1,17 @@
+{
+  "titulo": "Hierarquia de Views e respostas completas durante o streaming",
+  "situacao": "aprovada",
+  "fonte": "Pedido do professor após os testes da JOIA v1.20",
+  "termos": ["NativeWind", "View pai", "View mãe", "flexbox", "items-center", "resposta cortada", "streaming", "finish_reason"],
+  "pedidos": [
+    "Resumo: corrigir a explicação que deixou de atender à dúvida sobre hierarquia e omitiu o exemplo quando o aluno o pediu.",
+    "Investigar respostas que começam no meio de uma lista, terminam incompletas ou deixam trechos sem exibição.",
+    "Conferir os PRs e registrar o que ficou pendente antes de retomar o trabalho após a interrupção."
+  ],
+  "decisoes": [
+    "Explicar a relação entre contêiner e filhos diretos com as classes corretas. Para os pedidos pertinentes de NativeWind, usar um exemplo revisado de quatro linhas com a cota do servidor.",
+    "Usar o motivo de término da API e a revisão de prosa para identificar cortes ou listas sem os itens anteriores. Limitar a recuperação por modelo a uma tentativa e preservar os parágrafos já enviados.",
+    "Reconciliar o sufixo do texto confirmado no navegador sem redesenhar os parágrafos exibidos. Renderizar caixas, listas e tabelas como estruturas completas.",
+    "Validar o fluxo com histórico sintético e API simulada. Manter README e wiki como referência da arquitetura atual."
+  ]
+}

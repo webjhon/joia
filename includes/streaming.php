@@ -20,12 +20,12 @@ function sendJoiaStreamEvent(string $type, array $payload = []): void
     flush();
 }
 
-function readJoiaOpenAIStream(CurlHandle $request, callable $onDelta, array &$usage): string
+function readJoiaOpenAIStream(CurlHandle $request, callable $onDelta, array &$usage, ?string &$finishReason): string
 {
     $buffer = '';
     $answer = '';
     $done = false;
-    curl_setopt($request, CURLOPT_WRITEFUNCTION, static function (CurlHandle $handle, string $chunk) use (&$buffer, &$answer, &$done, &$usage, $onDelta): int {
+    curl_setopt($request, CURLOPT_WRITEFUNCTION, static function (CurlHandle $handle, string $chunk) use (&$buffer, &$answer, &$done, &$usage, &$finishReason, $onDelta): int {
         if ($done) return strlen($chunk);
         $buffer .= $chunk;
         while (($newline = strpos($buffer, "\n")) !== false) {
@@ -40,7 +40,9 @@ function readJoiaOpenAIStream(CurlHandle $request, callable $onDelta, array &$us
             }
             $event = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
             if (is_array($event['usage'] ?? null)) $usage = $event['usage'];
-            $text = $event['choices'][0]['delta']['content'] ?? '';
+            $choice = $event['choices'][0] ?? [];
+            if (is_string($choice['finish_reason'] ?? null)) $finishReason = $choice['finish_reason'];
+            $text = $choice['delta']['content'] ?? '';
             if ($text !== '') {
                 $answer .= $text;
                 $onDelta($text);

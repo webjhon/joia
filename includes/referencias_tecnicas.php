@@ -94,9 +94,9 @@ function joiaTechnicalCatalog(): array
             'fonte' => 'https://reactnative.dev/docs/animations',
         ],
         [
-            'termos' => ['nativewind', 'native wind', 'classname', 'tailwind', 'p 4', 'rounded lg', 'bg blue', 'utilitarias'],
+            'termos' => ['nativewind', 'native wind', 'classname', 'tailwind', 'p 4', 'rounded lg', 'bg blue', 'utilitarias', 'align items center'],
             'titulo' => 'NativeWind · Classes, estilos e componentes',
-            'conteudo' => 'Classes de className expressam estilos no componente que as recebe; use p-4 para espaçamento interno. Para integrar valor animado e classe fixa, uma Animated.View externa pode cuidar de style e uma View interna de className. Confirme a versão do NativeWind antes de indicar configuração ou integração de componente incompatível.',
+            'conteudo' => 'Classes de className expressam estilos no componente que as recebe. Use p-4 para espaçamento interno e items-center para imitar alignItems: center no estilo do React Native. O nome padrão da classe é items-center. Para integrar animação e classe fixa, uma Animated.View externa pode cuidar de style e uma View interna de className. Confira a versão antes de orientar a instalação.',
             'fonte' => 'https://www.nativewind.dev/docs',
         ],
         [
@@ -136,9 +136,9 @@ function joiaTechnicalCatalog(): array
             'fonte' => 'https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch',
         ],
         [
-            'termos' => ['jsx', 'componente', 'props', 'hierarquia', 'view', 'text', 'renderiza', 'composicao'],
+            'termos' => ['jsx', 'componente', 'props', 'hierarquia', 'view', 'view pai', 'view mae', 'views maes', 'filhos diretos', 'text', 'renderiza', 'composicao'],
             'titulo' => 'React Native · JSX e hierarquia',
-            'conteudo' => 'O nome da tag escolhe o componente. Atributos em JSX são props e chaves externas introduzem uma expressão JavaScript. Em style={{ ... }}, as chaves internas formam um objeto. A hierarquia define quem envolve e posiciona quem; View agrupa elementos e Text exibe texto.',
+            'conteudo' => 'Pai e mãe nomeiam o mesmo contêiner. Os filhos diretos são os componentes entre as tags dele. O layout aplicado ao contêiner organiza esses filhos, e o estilo aplicado a cada filho altera esse elemento. Uma View pode ter os dois papéis em níveis diferentes. Em style={{ ... }}, as chaves internas formam um objeto e as externas introduzem a expressão em JSX.',
             'fonte' => 'https://reactnative.dev/docs/intro-react',
         ],
     ];

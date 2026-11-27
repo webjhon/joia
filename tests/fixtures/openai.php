@@ -92,10 +92,28 @@ function curl_exec(CurlHandle $handle): string|bool
     $mixedFalseDelivery = [$mixedProse, "Aqui está um exemplo para testar.\n\n", '### Explicação do código'];
     $mixedInvalid = "```jsx\nfunction ComponenteCompletoNaoPermitido() {\n  return <Animated.View className=\"p-4\" style={{ opacity: valor }} />;\n}\n```";
     $mixedExampleRequested = in_array($latest, ['poderia me dar um exemplo de código pra esta situação?', 'quual exemplo, não vi nenhum código', 'Mas quero um exemplo de código'], true);
+    $truncatedAccumulator = in_array($latest, [
+        'Como reconhecer que um acumulador parou no estado esperado?',
+        'Como verificar o resultado final de um acumulador?',
+    ], true);
+    $orphanFormList = $latest === 'Como organizar as etapas de validação de um formulário?';
+    $orphanCode = $latest === 'Como aplico o início da animação no Animated?';
+    $hierarchyExample = in_array($latest, [
+        'poderia me dar um exemplo e explicar/',
+        'não entendi, eu pedi um exemplo em código e me explicar esse código cadê?',
+    ], true);
+    $accumulatorOpening = 'Compare o acumulador depois de cada entrada.';
+    $accumulatorClosing = 'Faça um teste com uma lista vazia e confirme que o valor inicial permaneceu.';
+    $orphanButton = "4. **Botão:** pressione para exibir um alerta.\n\n### O que observar\n\n- **Estilos:** as classes ajudam a definir o layout e o";
+    $finishReason = $latest === 'Como reconhecer que um acumulador parou no estado esperado?' && $kind === 'chat' ? 'length' : 'stop';
     $pieces = match ($kind) {
         'report' => ['## Síntese do percurso', "\n\n", 'A estudante comparou o eixo principal e o transversal.'],
         'onboarding' => ['Informação registrada. Siga para a próxima etapa do cadastro.'],
         'pedagogical_retry' => match (true) {
+            $truncatedAccumulator => str_contains($system, 'Continue a explicação já exibida ao aluno')
+                ? [$accumulatorClosing] : [$accumulatorOpening . "\n\n", $accumulatorClosing],
+            $orphanFormList => ['Valide cada campo antes de confirmar o envio. Comece por um caso com um campo obrigatório vazio.'],
+            $orphanCode => ["Prepare o valor animado antes de iniciar o movimento.\n\n", $animatedFourLines],
             $mixedExampleRequested => ['Aplique a classe no elemento e use o valor animado para observar o efeito visual.'],
             $omittedOpacitySnippet => str_contains($system, 'entregue a caixa de código dentro do limite')
                 ? ["O valor animado define a opacidade.\n\n", $animatedFourLines]
@@ -108,6 +126,11 @@ function curl_exec(CurlHandle $handle): string|bool
             default => ["Observe o elemento que agrupa os filhos.\n\n", 'Compare a posição antes e depois.'],
         },
         default => match (true) {
+            $truncatedAccumulator => [$accumulatorOpening . "\n\n", 'Compare também o que acontece quando a entrada e o'],
+            $orphanFormList => ['4. Valide o último campo antes de confirmar.'],
+            $orphanCode => [$invalidJump . "\n\n", $orphanButton],
+            str_contains($latest, 'view pais, como distribuo') => ['Use a classe `align-items-center` para alinhar os filhos.'],
+            $hierarchyExample => [$orphanButton],
             $latest === 'Como testar o algoritmo de um acumulador quando a lista está vazia?' => [
                 'Com uma lista vazia, o laço não roda e o acumulador conserva o estado inicial. Confira esse valor e compare com uma lista de um elemento.',
             ],
@@ -150,7 +173,11 @@ function curl_exec(CurlHandle $handle): string|bool
         },
     };
     if (!$stream) {
-        return json_encode(['model' => $body['model'], 'choices' => [['message' => ['content' => implode('', $pieces)]]], 'usage' => $usage], JSON_THROW_ON_ERROR);
+        return json_encode([
+            'model' => $body['model'],
+            'choices' => [['message' => ['content' => implode('', $pieces)], 'finish_reason' => $finishReason]],
+            'usage' => $usage,
+        ], JSON_THROW_ON_ERROR);
     }
 
     $write = $handle->options[CURLOPT_WRITEFUNCTION];
@@ -163,6 +190,7 @@ function curl_exec(CurlHandle $handle): string|bool
         $write($handle, substr($event, $split));
         usleep(50000);
     }
+    $write($handle, 'data: ' . json_encode(['choices' => [['delta' => new stdClass(), 'finish_reason' => $finishReason]]], JSON_THROW_ON_ERROR) . "\r\n\r\n");
     if ($body['stream_options']['include_usage'] ?? false) {
         $write($handle, 'data: ' . json_encode(['model' => $body['model'], 'choices' => [], 'usage' => $usage], JSON_THROW_ON_ERROR) . "\n\n");
     }

@@ -59,7 +59,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.20**
+> **Versão atual: 1.21**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -149,11 +149,13 @@ do aluno após o acesso.
 
 No chat do aluno, a pergunta permanece visível durante o envio. O PHP confirma
 o recebimento antes de preparar o contexto e recebe o stream da OpenAI. Os
-parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar. O
-navegador acrescenta cada bloco à resposta conforme ele chega. Caixas e trechos com sinais de
-código aguardam a validação pedagógica. Se precisar reformular, a JOIA aproveita
-os parágrafos já enviados e transmite a continuação em partes. Se a conexão
-cair no meio, o chat preserva o texto visível e marca a interrupção. O
+parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar.
+Caixas, tabelas e listas são renderizadas como estruturas completas. Se a API
+atingir o limite de saída ou a revisão encontrar uma parte incompleta, a JOIA
+pode aproveitar os parágrafos já enviados e pedir uma única continuação ao
+modelo. Após a confirmação, o navegador acrescenta qualquer trecho final ainda
+ausente, preservando o que já está na tela. Se a conexão cair, o chat mantém o
+texto visível e marca a interrupção. O
 histórico, as anotações e a leitura em voz alta usam a resposta final. Cadastro,
 relatórios e clientes que pedem JSON continuam usando respostas completas.
 
@@ -174,7 +176,9 @@ Paulo. O contador fica na memória privada do aluno e vale em outros navegadores
 ou dispositivos quando ele usa seu código. Respostas que ficam em prosa e
 reenvios do mesmo pedido não consomem a cota. A interface exibe o código aprovado
 em uma caixa com a linguagem e o destaque de sintaxe, depois que a cota e a
-resposta são salvas juntas.
+resposta são salvas juntas. Dúvidas sobre hierarquia de `View` em NativeWind
+podem receber uma explicação local e um exemplo revisado de contêiner e filhos
+diretos, inclusive quando o aluno pede o exemplo na mensagem seguinte.
 
 ## Consumo da API
 

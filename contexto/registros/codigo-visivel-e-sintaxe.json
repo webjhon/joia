@@ -9,6 +9,7 @@
   "decisoes": [
     "Indicar que há código somente quando a resposta tem um bloco autorizado e visível. Se a pista ficar em prosa, explicar diretamente o ajuste e o efeito esperado.",
     "Basear a orientação nos elementos descritos na conversa, evitando botões, demos ou configurações inventados.",
-    "Identificar a linguagem do bloco de código para facilitar a leitura, respeitando o formato e a cota de pistas-diarias-e-primeiro-passo.json."
+    "Identificar a linguagem do bloco de código para facilitar a leitura, respeitando o formato e a cota de pistas-diarias-e-primeiro-passo.json.",
+    "O marco zero em 2026-11-28-marco-zero-respostas.json preserva as caixas e o destaque de sintaxe e substitui a autorização e a cota de pistas pela exibição da resposta do modelo."
   ]
 }

@@ -12,6 +12,7 @@
     "Priorizar o código efetivamente mostrado ao aluno e resolver localmente dúvidas inequívocas sobre propriedade e valor em estilos.",
     "Usar um catálogo técnico curado com recuperação local por termos e expressões da aula, independente da memória vetorial privada.",
     "Usar o catálogo do professor para responder a pedidos de material com título, seção e relevância para a dúvida. Mantêm-se os limites definidos em referencias-didaticas-professor.json e exemplos-combinados.json.",
-    "Descrever os fluxos, arquivos e decisões arquiteturais vigentes na wiki e reproduzir os casos com perfis sintéticos e API simulada."
+    "Descrever os fluxos, arquivos e decisões arquiteturais vigentes na wiki e reproduzir os casos com perfis sintéticos e API simulada.",
+    "A partir de 2026-11-28-marco-zero-respostas.json, os catálogos e os trechos recuperados integram o contexto do modelo. O marco zero substitui as explicações prontas no PHP e os limites anteriores para o código entregue."
   ]
 }

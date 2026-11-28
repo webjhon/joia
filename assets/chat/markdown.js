@@ -47,20 +47,20 @@ function appendJoiaToken(parent, token){
   }
 }
 
-function renderJoiaCodeBox(source, hint){
+function renderJoiaCodeBox(source, hint, highlight){
   const attribute = source.match(/^(\s*)(className)(\s*=\s*)("[^"\r\n]*"|'[^'\r\n]*')(\s*)$/);
   const inferred = attribute || /^\s*<(?:[A-Z][\w.]*|Animated\.View)(?=\s|\/>)/.test(source) ? "jsx" : "";
   const language = joiaCodeLanguages.find(entry => entry.aliases.includes(hint.toLowerCase() || inferred));
   const figure = document.createElement("figure");
   figure.className = "joia-code-block";
   const caption = document.createElement("figcaption");
-  caption.textContent = language?.name ?? "Código";
+  caption.textContent = language?.name ?? (hint || "Código");
   const pre = document.createElement("pre");
   pre.tabIndex = 0;
   const code = document.createElement("code");
   code.textContent = source;
 
-  if(attribute && (language?.grammar === "jsx" || language?.grammar === "tsx")){
+  if(highlight && attribute && (language?.grammar === "jsx" || language?.grammar === "tsx")){
     const [, before, name, operator, value, after] = attribute;
     const annotated = document.createDocumentFragment();
     annotated.append(before);
@@ -71,7 +71,7 @@ function renderJoiaCodeBox(source, hint){
     ]);
     annotated.append(after);
     code.replaceChildren(annotated);
-  } else {
+  } else if(highlight){
     const prism = window.Prism;
     const grammar = language && prism?.languages?.[language.grammar];
     if(grammar && source.length <= 12000){
@@ -90,22 +90,15 @@ function renderJoiaCodeBox(source, hint){
   return figure;
 }
 
-function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
+function renderJoiaMarkdown(text, {highlight = true} = {}){
   const content = document.createElement("div");
   content.className = "joia-markdown";
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const listPattern = /^\s*(?:(\d{1,9})[.)]|[-+*])\s+(.+)$/;
   const headingPattern = /^#{1,6}\s+(.+)$/;
   const dividerPattern = /^ {0,3}(?:-{3,}|\*{3,}|_{3,})[\t ]*$/;
-  let hasEmoji = /\p{Extended_Pictographic}/u.test(text);
-  function withTipIcon(line, heading = false){
-    if(!addTipIcon || hasEmoji) return line;
-    const label = line.match(/^\s*(?:\*\*)?(dica|atenção|cuidado)(?=\*\*|\s*:|$)/i);
-    if(!label || (!heading && !/^\s*(?:\*\*)?(?:dica|atenção|cuidado)(?:\*\*)?\s*:/i.test(line))) return line;
-    hasEmoji = true;
-    return (label[1].toLowerCase() === "dica" ? "💡 " : "⚠️ ") + line;
-  }
-  const fencePattern = /^\s*```([\w.+-]*)\s*$/;
+  const fencePattern = /^[\t ]*(`{3,}|~{3,})[\t ]*([^\s`~]*)[^`~]*$/;
+  const closingFencePattern = /^[\t ]*(`{3,}|~{3,})[\t ]*$/;
   const cells = line => line.trim().replace(/^\||\|$/g, "").split("|").map(cell => cell.trim());
   const tableStart = index => {
     const line = lines[index];
@@ -122,9 +115,14 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
     }
     const fence = line.match(fencePattern);
     if(fence){
+      const [, marker, hint] = fence;
       const start = ++index;
-      while(index < lines.length && !/^\s*```\s*$/.test(lines[index])) index++;
-      content.append(renderJoiaCodeBox(lines.slice(start, index).join("\n"), fence[1]));
+      while(index < lines.length){
+        const closing = lines[index].match(closingFencePattern)?.[1];
+        if(closing?.startsWith(marker)) break;
+        index++;
+      }
+      content.append(renderJoiaCodeBox(lines.slice(start, index).join("\n"), hint, highlight));
       if(index < lines.length) index++;
       continue;
     }
@@ -136,7 +134,7 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
     const heading = line.match(headingPattern);
     if(heading){
       const title = document.createElement("h3");
-      appendJoiaInline(title, withTipIcon(heading[1], true));
+      appendJoiaInline(title, heading[1]);
       content.append(title);
       index++;
       continue;
@@ -187,7 +185,7 @@ function renderJoiaMarkdown(text, {addTipIcon = true} = {}){
       continue;
     }
     const paragraph = document.createElement("p");
-    appendJoiaInline(paragraph, withTipIcon(line));
+    appendJoiaInline(paragraph, line);
     index++;
     while(index < lines.length && lines[index].trim() && !headingPattern.test(lines[index])
       && !listPattern.test(lines[index]) && !dividerPattern.test(lines[index])

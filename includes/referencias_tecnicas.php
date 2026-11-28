@@ -7,67 +7,39 @@ const JOIA_TECHNICAL_REFERENCE_LIMIT = 2;
 function joiaTechnicalCodeContext(string $message, array $history): ?string
 {
     $question = normalize($message);
-    if (joiaSnippetTurn($message)['boundary']) return null;
-    $followUp = preg_match('/\b(?:isso|nesse|nest[ea]|nessa|naquel[ea]|anterior|esse|essa|aquel[ea])\b'
-        . '|\b(?:qual (?:e )?a diferenca|o que (?:significa|faz)|ja usei|lado direito|dois pontos)\b/', $question);
-    if (!$followUp) return null;
+    $topicChange = '/\b(?:mudando de assunto|mudar de assunto|troquei de assunto|outro assunto|novo assunto)\b/';
+    if (preg_match($topicChange, $question)) return null;
+    $refersToHistory = preg_match('/\b(?:isso|nesse|nest[ea]|nessa|naquel[ea]|anterior|esse|essa|aquel[ea]|de antes|onde parou|lado direito|dois pontos)\b/', $question);
+    if (!$refersToHistory && !preg_match('/\b(?:qual (?:e )?a diferenca|o que (?:significa|faz)|ja usei)\b/', $question)) return null;
 
-    preg_match_all('/`([A-Za-z_$][\w$.]*)`/', $message, $quoted);
-    preg_match_all('/\b(?:opacity|opacidade|translate[xy]|deslocamento|transform|animated|useref|useState|tovalue|duration|usenativedriver|classname|stylesheet)\b/i', $message, $named);
-    $anchors = array_unique(array_map('normalize', array_merge($quoted[1], $named[0])));
+    preg_match_all('/(?<!`)`([A-Za-z_$][\w$.-]*)`(?!`)/', $message, $quoted);
+    preg_match_all('/\b(?:[A-Za-z][a-z0-9]+[A-Z][A-Za-z0-9]*|[A-Za-z]\w*(?:[._][A-Za-z]\w*)+|'
+        . '(?i:opacity|opacidade|translate[xy]|deslocamento|transform|animated|useref|usestate|tovalue|duration|usenativedriver|classname|stylesheet))\b/', $message, $named);
+    $anchors = array_filter(array_unique(array_map('normalize', array_merge($quoted[1], $named[0]))));
+    if (!$refersToHistory && !$anchors) return null;
     $best = null;
     $bestScore = 0;
     foreach (array_reverse(array_slice($history, -JOIA_TECHNICAL_HISTORY_WINDOW)) as $turn) {
         $content = (string) ($turn['content'] ?? '');
-        if (($turn['role'] ?? '') === 'user' && joiaSnippetTurn($content)['boundary']) break;
-        if (($turn['role'] ?? '') !== 'assistant') continue;
-        // Keep the actual visible fence. Earlier entries can use older language labels.
-        if (!preg_match('/^\h*```[\w.+-]*\h*\R.*?^\h*```\h*(?=\R|\z)/ms', $content, $match)
-            || strlen($match[0]) > 700) continue;
-        if (!$anchors) return $match[0];
-        $candidate = ' ' . normalize($match[0]) . ' ';
-        $score = 0;
-        foreach ($anchors as $anchor) {
-            if ($anchor !== '' && str_contains($candidate, ' ' . $anchor . ' ')) $score++;
+        $role = $turn['role'] ?? '';
+        if ($role === 'user' && preg_match($topicChange, normalize($content))) break;
+        if ($role !== 'user' && $role !== 'assistant') continue;
+        preg_match_all('/^\h*((`|~)\2{2,})(?!\2)[^\r\n]*\R.*?^\h*\1\2*\h*(?=\R|\z)/ms', $content, $matches);
+        foreach (array_reverse($matches[0]) as $block) {
+            if (!$anchors) return $block;
+            $candidate = ' ' . normalize($block) . ' ';
+            $score = 0;
+            foreach ($anchors as $anchor) {
+                if (str_contains($candidate, ' ' . $anchor . ' ')) $score++;
+            }
+            if ($score === count($anchors)) return $block;
+            if ($score > $bestScore) {
+                $best = $block;
+                $bestScore = $score;
+            }
         }
-        if ($score > $bestScore) {
-            $best = $match[0];
-            $bestScore = $score;
-        }
-        if ($score === count($anchors)) break;
     }
     return $best;
-}
-
-function joiaExplainStyleBinding(string $message, ?string $code): ?string
-{
-    if ($code === null || !preg_match('/\b(?:qual (?:e )?a diferenca|o que significa|por que (?:tem|usa)|nome da variavel|'
-        . 'lado (?:direito|esquerdo)|depois dos dois pontos|que vem depois)\b/', normalize($message))) return null;
-    // Limit the local answer to simple property-to-variable bindings actually shown.
-    // Expressions, literal values and requests to change the code go to the model.
-    if (substr_count($message, '?') > 1 || preg_match('/\b(?:como (?:mudar|alterar|trocar|animo)|'
-        . 'e (?:por que|como|onde)|(?:mostra|mostre|manda|mande|da|de) (?:outro|um) (?:exemplo|trecho|codigo))\b/', normalize($message))) return null;
-    $properties = [
-        'opacity' => 'define a opacidade do elemento. De 0 a 1, o elemento passa de transparente a totalmente opaco',
-        'translateX' => 'desloca o elemento na horizontal',
-        'translateY' => 'desloca o elemento na vertical. Um valor negativo move para cima',
-    ];
-    preg_match_all('/\b(opacity|translate[XY])\s*:\s*([A-Za-z_$][\w$]*)(?=\h*[,}\]\r\n]|\z)/', $code, $bindings, PREG_SET_ORDER);
-    $question = ' ' . normalize($message) . ' ';
-    foreach ($bindings as [, $property, $value]) {
-        if (in_array($value, ['true', 'false', 'undefined', 'null'], true)) continue;
-        $namesProperty = str_contains($question, ' ' . normalize($property) . ' ');
-        $namesValue = str_contains($question, ' ' . normalize($value) . ' ');
-        if (!$namesProperty && !$namesValue) continue;
-        if (count($bindings) > 1 && !($namesProperty && $namesValue)) return null;
-        $variation = $property === 'opacity'
-            ? 'Para comparar, em um estilo fixo com `StyleSheet`, o valor de `opacity: 0.5` é sempre 0,5. Um `Animated.Value` pode mudar ao longo do tempo na `Animated.View`.'
-            : 'Quando essa variável guarda um `Animated.Value`, a `Animated.View` acompanha a mudança. O valor precisa estar preparado antes dessa linha.';
-        return "Em **`{$property}: {$value}`**, **`{$property}` é a propriedade**. Ela {$properties[$property]}.\n\n"
-            . "**`{$value}` é a variável que fornece o valor**. O nome pode mudar, desde que corresponda à variável declarada antes.\n\n"
-            . $variation;
-    }
-    return null;
 }
 
 function joiaTechnicalCatalog(): array
@@ -78,61 +50,61 @@ function joiaTechnicalCatalog(): array
         [
             'termos' => ['opacity', 'opacidade', 'stylesheet', 'propriedade valor', 'dois pontos', 'estilo fixo', 'valor animado'],
             'titulo' => 'React Native · Propriedade de estilo e valor',
-            'conteudo' => 'Em um objeto de estilos, a chave indica o que muda e a expressão à direita produz o valor. Compare opacity: 0.5 em um StyleSheet com opacity: opacidade em uma Animated.View. A variável precisa estar definida. A opacidade vai de 0 (transparente) a 1 (totalmente opaco).',
+            'conteudo' => 'Em um objeto de estilos, a chave indica o que muda e a expressão à direita produz o valor. Em opacity: 0.5 o valor é constante. Em opacity: opacidade na Animated.View, o valor vem da variável opacidade. A opacidade vai de 0 (transparente) a 1 (totalmente opaco).',
             'fonte' => 'https://reactnative.dev/docs/view-style-props#opacity',
         ],
         [
             'termos' => ['animated', 'animated value', 'useref', 'timing', 'tovalue', 'usenativedriver', 'duracao', 'interpolar'],
             'titulo' => 'React Native · Valor e execução do Animated',
-            'conteudo' => 'Guarde o mesmo Animated.Value entre renderizações, geralmente com useRef. Demonstre a ligação ao estilo e, em outra etapa, a configuração e o início da animação. Em timing, toValue é o destino e duration é o tempo em milissegundos. O driver nativo pode animar opacity e transform, mas não propriedades de layout como width e flex.',
+            'conteudo' => 'O mesmo Animated.Value pode persistir entre renderizações em um useRef. O vínculo ao estilo faz o componente acompanhar o valor. Em Animated.timing, toValue é o destino e duration é o tempo em milissegundos. A animação inicia com start, que pode ser chamado na montagem ou em um evento. O driver nativo pode animar opacity e transform, mas não propriedades de layout como width e flex.',
             'fonte' => 'https://reactnative.dev/docs/animations',
         ],
         [
             'termos' => ['pula', 'pular', 'pulo', 'saltar', 'salto', 'aterrissar', 'translatey', 'efeito de pulo', 'deslocamento vertical', 'sobe e desce', 'sequence'],
             'titulo' => 'React Native · Algoritmo de movimento vertical',
-            'conteudo' => 'Modele três pontos observáveis: repouso com translateY zero, subida com destino negativo e retorno a zero. A API Animated.sequence ordena as duas fases. Se o exercício contar saltos, atualize o estado no término confirmado e decida como tratar toques durante o movimento.',
+            'conteudo' => 'O salto na tela tem três pontos: repouso com translateY zero, subida com destino negativo e retorno a zero. A API Animated.sequence ordena a subida e a descida. O callback final permite distinguir o término de uma interrupção e contar o salto concluído.',
             'fonte' => 'https://reactnative.dev/docs/animations',
         ],
         [
             'termos' => ['nativewind', 'native wind', 'classname', 'tailwind', 'p 4', 'rounded lg', 'bg blue', 'utilitarias', 'align items center'],
             'titulo' => 'NativeWind · Classes, estilos e componentes',
-            'conteudo' => 'Classes de className expressam estilos no componente que as recebe. Use p-4 para espaçamento interno e items-center para imitar alignItems: center no estilo do React Native. O nome padrão da classe é items-center. Para integrar animação e classe fixa, uma Animated.View externa pode cuidar de style e uma View interna de className. Confira a versão antes de orientar a instalação.',
+            'conteudo' => 'Classes de className expressam estilos no componente que as recebe. A classe p-4 define espaçamento interno e items-center corresponde a alignItems: center. Uma Animated.View externa pode cuidar de style e uma View interna de className. A configuração de instalação varia por versão.',
             'fonte' => 'https://www.nativewind.dev/docs',
         ],
         [
             'termos' => ['flexbox', 'flex col', 'flex row', 'items center', 'justify center', 'eixo transversal', 'eixo principal', 'layout'],
             'titulo' => 'React Native · Eixos do Flexbox',
-            'conteudo' => 'flexDirection define o eixo principal no contêiner. justifyContent atua nesse eixo e alignItems atua no transversal. O padrão do Flexbox no React Native é column. Para className, items-center corresponde ao eixo transversal e justify-center ao principal. Use a direção real da tela no exemplo.',
+            'conteudo' => 'flexDirection define o eixo principal no contêiner. justifyContent atua nesse eixo e alignItems atua no transversal. O padrão do Flexbox no React Native é column. Para className, items-center corresponde ao eixo transversal e justify-center ao principal.',
             'fonte' => 'https://reactnative.dev/docs/flexbox',
         ],
         [
             'termos' => ['expo', 'expo go', 'sdk', 'eas', 'apk', 'aab', 'development build', 'dependencia nativa', 'biblioteca nativa'],
             'titulo' => 'Expo · Ambiente de execução e build',
-            'conteudo' => 'Identifique o SDK e o ambiente do aluno antes de indicar comandos. Expo Go traz um conjunto fixo de módulos nativos; uma development build pode incluir os do projeto. Diferencie abrir um projeto local, criar a build Android e instalar o artefato. Confira perfil e formato APK ou AAB conforme o objetivo.',
+            'conteudo' => 'Expo Go traz um conjunto fixo de módulos nativos. Uma development build pode incluir os módulos do projeto. Executar o projeto local, criar a build Android e instalar o artefato são etapas distintas. A escolha entre APK e AAB depende do perfil de build e da forma de distribuição.',
             'fonte' => 'https://docs.expo.dev/develop/development-builds/introduction/',
         ],
         [
             'termos' => ['estado', 'usestate', 'useref', 'props', 'contador', 'pontuacao', 'app tsx', 'navegar', 'tela ativa'],
             'titulo' => 'React · Estado, referência e composição',
-            'conteudo' => 'Estado representa dados que afetam a renderização e é uma fotografia de cada render. Use atualização funcional se o próximo valor depende do anterior. Ref mantém um valor entre renderizações sem disparar outra. Localize quem possui a informação e quem a recebe por props. Em uma troca condicional de telas, uma ação do filho pode pedir a alteração de estado ao pai.',
+            'conteudo' => 'Estado representa dados que afetam a renderização e é uma fotografia de cada render. Uma atualização funcional calcula o próximo valor a partir do anterior. Ref mantém um valor entre renderizações sem disparar outra. Em uma troca condicional de telas, o pai pode guardar o estado e passar uma prop para que o filho solicite a atualização.',
             'fonte' => 'https://react.dev/learn/state-as-a-snapshot',
         ],
         [
             'termos' => ['algoritmo', 'condicao', 'repeticao', 'se senao', 'loop', 'acumulador', 'vetor', 'lista', 'caso de teste', 'depurar', 'quando acontece', 'passo a passo'],
             'titulo' => 'Programação · Decomposição e teste de mesa',
-            'conteudo' => 'Identifique entrada, estado inicial, regra que atualiza o estado e saída observável. Dê um exemplo concreto com valores pequenos e acompanhe estado antes, passo executado e estado depois. Use uma condição para separar casos e um laço quando a regra se repete. Compare um caso normal e um limite, como lista vazia ou empate, quando isso muda o resultado.',
+            'conteudo' => 'Um teste de mesa acompanha a entrada, o estado inicial, cada passo que atualiza esse estado e a saída. Condições separam casos e laços executam regras repetidas. Casos de limite, como lista vazia ou empate, podem revelar comportamentos diferentes dos casos usuais.',
             'fonte' => 'Síntese pedagógica da JOIA',
         ],
         [
             'termos' => ['typescript', 'tipagem', 'tipo de retorno', 'type', 'interface', 'opcional', 'parametro', 'argumento'],
             'titulo' => 'TypeScript · Contratos de dados e funções',
-            'conteudo' => 'O parâmetro descreve o que uma função recebe e o retorno descreve o que entrega. Em React, o tipo das props é o contrato entre os componentes. Distinga uma propriedade opcional de uma obrigatória. Uma anotação de tipo orienta a compilação, enquanto dados vindos da rede precisam de verificação em tempo de execução.',
+            'conteudo' => 'O parâmetro descreve o que uma função recebe e o retorno descreve o que entrega. Em React, o tipo das props é o contrato entre os componentes e pode distinguir propriedades opcionais das obrigatórias. Uma anotação é verificada em compilação e os dados externos podem ser validados em tempo de execução.',
             'fonte' => 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html',
         ],
         [
             'termos' => ['fetch', 'http', 'requisicao', 'resposta da api', 'assincrono', 'token', 'json', 'carregando'],
             'titulo' => 'Programação · Fluxo assíncrono entre interface e servidor',
-            'conteudo' => 'Identifique o evento que inicia o pedido, o contrato HTTP e os estados de carregamento, sucesso e erro da interface. Uma resposta HTTP 4xx ou 5xx também chega como resposta no fetch; confira o estado HTTP e valide o JSON antes de atualizar a tela. Separe o estado visual dos dados que o servidor confirma.',
+            'conteudo' => 'Um evento de interface pode iniciar um pedido HTTP, passando pelos estados de carregamento, sucesso e erro. Uma resposta 4xx ou 5xx também chega como resposta em fetch. O status HTTP e o corpo JSON fornecem informações distintas ao cliente.',
             'fonte' => 'https://developer.mozilla.org/pt-BR/docs/Web/API/Fetch_API/Using_Fetch',
         ],
         [

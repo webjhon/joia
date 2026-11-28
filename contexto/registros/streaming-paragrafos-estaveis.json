@@ -7,6 +7,7 @@
   "decisoes": [
     "Acrescentar parágrafos autônomos conforme chegam e preservar os blocos já exibidos durante uma reformulação.",
     "Sinalizar ajustes e interrupções separadamente do texto da resposta. Manter a resposta integral para histórico e leitura em voz alta.",
-    "A reformulação gradual registrada em orientacao-concreta-e-streaming.json passa a complementar os parágrafos já exibidos."
+    "A reformulação gradual registrada em orientacao-concreta-e-streaming.json passa a complementar os parágrafos já exibidos.",
+    "A partir de 2026-11-28-marco-zero-respostas.json, a aplicação encaminha o texto recebido do provedor progressivamente, com um aviso de interrupção separado quando aplicável."
   ]
 }

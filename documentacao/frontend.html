@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -56,9 +56,9 @@
 </section>
 <section id="conversa">
 <h2>Conversa e formatação</h2>
-<p>O envio mantém a pergunta visível, e a interface informa quando o contexto está sendo preparado. O chat acrescenta parágrafos recebidos e guarda estruturas como listas, tabelas e caixas até a confirmação. Com <code>done</code>, acrescenta ao DOM o trecho confirmado que ainda falta, preservando os parágrafos já exibidos. Se o fluxo for interrompido ou o texto final divergir, o chat conserva a parte visível e marca a interrupção. A resposta final também é a base da cópia para o caderno e da leitura em voz alta.</p>
+<p>O envio mantém a pergunta visível, e a interface informa quando o contexto está sendo preparado. O chat monta progressivamente o Markdown a partir do texto recebido. Com <code>done</code>, usa a resposta confirmada para concluir a exibição. Se a geração for interrompida, o chat mantém o texto recebido e indica a interrupção. O texto recebido também serve de base para a cópia no caderno e para a leitura em voz alta.</p>
 <p>O renderizador converte Markdown em elementos DOM com texto literal, incluindo títulos, listas, tabelas e caixas de código. O Prism local destaca a sintaxe das linguagens reconhecidas. Se o destaque falhar, o código continua legível na caixa.</p>
-<p>Quando um material está associado à resposta, o painel <b>Material do professor</b> lista nomes em texto simples. Uma consulta direta pode indicar também como localizar o material e para qual parte da dúvida ele é útil.</p>
+<p>Quando um material está associado à resposta, o painel <b>Material do professor</b> lista nomes em texto simples. O modelo recebe o título, a indicação de localização e o objetivo da aula selecionada como contexto da conversa.</p>
 <p>O avatar e a leitura automática são opcionais. As preferências ficam no navegador e a voz usa a síntese disponibilizada pelo dispositivo.</p>
 </section>
 <section id="arquivos">
@@ -71,7 +71,7 @@
 </tbody></table></div>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="backend.html">Backend PHP →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="backend.html">Backend PHP →</a></footer>
     </main>
   </div>
 </div>

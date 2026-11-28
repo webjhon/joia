@@ -2,9 +2,13 @@
 
 Este relatório acompanha a [arquitetura de IA](inteligencia-artificial.html), o [backend](backend.html) e a [geração de relatórios](dados-relatorios.html). A comparação usa a revisão `0f575af` como linha de base. Os procedimentos de medição usam dados sintéticos e mantêm o histórico real fora dos testes.
 
+## Fluxo atual na versão 1.22
+
+O chat envia a pergunta, o histórico recente do aluno autenticado e as referências pertinentes em uma chamada de geração. A busca vetorial opcional ainda pode fazer uma chamada separada de embeddings. A aplicação encaminha e salva o texto do modelo. O marco zero retirou a reformulação pedagógica e os tetos de entrada e saída aplicados localmente ao chat. A medição usa os dados de uso retornados pela API.
+
 ## 1. Linha de base auditada
 
-A aplicação persiste cada percurso em JSON. O identificador do aluno vincula a memória à sessão, as anotações e o índice SQLite opcional. O chat passa pelo filtro pedagógico antes de gravar a resposta integral. O streaming publica parágrafos autônomos, preserva o que já foi exibido e apresenta o texto final depois da validação. O ajuste pedagógico pode chamar o modelo uma segunda vez quando necessário.
+Na revisão auditada, a aplicação persistia cada percurso em JSON. O identificador do aluno vinculava a memória à sessão, as anotações e o índice SQLite opcional. O filtro pedagógico revisava a saída do chat e podia chamar o modelo uma segunda vez antes de salvar a resposta.
 
 | Caminho | API e chamadas por operação | Evidência na revisão original |
 | --- | --- | --- |
@@ -41,15 +45,15 @@ Medi o conteúdo de texto na revisão `0f575af` com `tiktoken` 0.12.0 e a codifi
 | `NEGATIVEPROMPTS.TXT` | 6.827 | 1.394 |
 | Mensagem de sistema montada com os dois documentos e cabeçalhos | 17.369 | 3.592 |
 
-Esse custo de contexto é preservado pela decisão de manter as instruções completas. Comparar tokens em cache requer o `usage` real do provedor, mesmo quando o texto fixo é idêntico.
+Esses valores descrevem a revisão original. Comparar tokens em cache requer o `usage` real do provedor, mesmo quando o texto fixo é idêntico.
 
 ## 2. Otimizações e critérios de qualidade
 
-**Instruções e cache.** Os dois documentos pedagógicos permanecem integrais. A montagem conserva primeiro o conteúdo estável e posiciona as instruções específicas de cada operação antes de perfil, memória recuperada, histórico e pergunta. A recomendação de cache é de prefixo estável, sem inserir identificadores do estudante na chave nem armazenar respostas compartilhadas. O caching da OpenAI depende de coincidência exata, elegibilidade do modelo e do cache do serviço. A métrica de confirmação é `usage.prompt_tokens_details.cached_tokens`.
+**Instruções e cache.** O chat inicia com a instrução estável de `treinamento.txt` e inclui perfil, referências, histórico e pergunta. O caching da OpenAI depende de coincidência exata, elegibilidade do modelo e do cache do serviço. A métrica de confirmação é `usage.prompt_tokens_details.cached_tokens`.
 
 **Memória adaptativa.** A decisão de consultar memória é local. Só mensagens reconhecidas com alta confiança como independentes deixam de chamar a recuperação. Referências, continuidade, dificuldades recorrentes e casos ambíguos mantêm o caminho semântico. Os dados por estudante, a dimensão dos vetores e os limiares de recuperação existentes são preservados. O histórico recente permanece disponível. A montagem evita enviar novamente um trecho recuperado que já aparece no histórico enviado.
 
-**Orçamento de contexto.** Registre a estimativa de entrada de forma distinta do `usage` medido. O orçamento é por operação e a reserva de saída deve preservar o espaço existente por padrão. Instruções obrigatórias, perfil, pergunta e histórico necessário são prioritários. Configure limites só depois de comparar cargas reais. Qualquer teto escolhido deve ser testado com diálogos longos antes de instalar em uma turma.
+**Orçamento de contexto.** A estimativa de entrada fica separada do `usage` medido. Cadastro e relatórios aceitam limites opcionais de entrada e saída. A operação de embeddings aceita um limite de entrada. O chat encaminha o histórico selecionado e a pergunta com os limites do provedor.
 
 **Cadastro e chamadas repetidas.** Confirmações claras de etapas já validadas localmente podem seguir por uma resposta determinística. Mensagens ambíguas continuam no fluxo do LLM. O identificador opcional de operação permite reconhecer o reenvio da mesma tentativa no escopo autenticado. O servidor conserva até 16 identificadores na sessão da conversa. Uma nova pergunta deliberada pode ter o mesmo texto e um identificador diferente. Não há reenvio automático de chamadas pagas depois de timeout.
 
@@ -68,19 +72,19 @@ Habilite as métricas com um diretório já existente, acessível à conta que e
 | `JOIA_COMPACT_REPORT=0` | Restaura a representação anterior do histórico integral no relatório. |
 | `JOIA_LOCAL_ONBOARDING=0` | Volta à geração pelo modelo para mensagens claras de cadastro. |
 | `JOIA_REQUEST_DEDUP=0` | Desativa o reaproveitamento da mesma operação identificada, útil durante rollback seletivo. |
-| `JOIA_TOKEN_BUDGETS_JSON` | Orçamento opcional por operação. A chave `input` vale para `chat`, `onboarding`, `pedagogical_retry`, `report` e `embedding`. A chave `output` vale para as operações de Chat Completions. |
+| `JOIA_TOKEN_BUDGETS_JSON` | Orçamento opcional. A chave `input` vale para `onboarding`, `report` e `embedding`. A chave `output` vale para `onboarding` e `report`. |
 
 Use um objeto JSON por operação. O exemplo abaixo mostra o formato para configuração do ambiente.
 
 ```json
 {
-  "chat": {"input": 96000, "output": 900},
+  "onboarding": {"output": 220},
   "report": {"output": 1600},
   "embedding": {"input": 30000}
 }
 ```
 
-O orçamento de entrada usa uma aproximação conservadora com bytes UTF-8 e margem para estrutura da mensagem. Esse valor constitui um limite local, sem relação direta com o número de tokens faturáveis. A checagem preserva o material indispensável. Para chamadas de chat que ultrapassem um teto optativo, o servidor interrompe o envio ao modelo em vez de descartar o contexto. Sem essa configuração, o fluxo conserva os limites de saída existentes e não adiciona teto de entrada.
+O orçamento de entrada usa uma aproximação conservadora com bytes UTF-8 e margem para estrutura da mensagem. A aplicação verifica essa aproximação nas operações configuradas. Os tokens faturáveis vêm do `usage` informado pelo provedor.
 
 Consulta local:
 
@@ -104,7 +108,7 @@ As comparações locais separam tamanho de material enviado, quantidade de requi
 | --- | --- | --- |
 | Saudação curta e pergunta autônoma | Uma geração e possível recuperação | Geração com contexto recente preservado e recuperação dispensada só quando reconhecida com segurança. |
 | Continuação, referência histórica e dificuldade recorrente | RAG disponível conforme o histórico | A mesma memória relevante, mesma seleção por estudante e fallback para histórico recente se SQLite ou embeddings falharem. |
-| Dúvida complexa, leitura de código, pedido de solução pronta e tentativa de manipulação | Contexto e filtro pedagógico | Prioridade das regras, resposta condizente com a dúvida, revisão quando necessária e publicação somente após validação. |
+| Dúvida complexa, leitura de código ou pedido de solução completa | Contexto e filtro pedagógico | Histórico do próprio aluno enviado ao modelo, uma chamada de geração e preservação do texto recebido, incluindo os blocos de código. |
 | Cadastro claro e ambíguo | Uma geração por mensagem | Confirmação local clara. Dúvida ou outra intenção segue para o LLM. |
 | Relatório acadêmico | Histórico integral serializado e uma geração | Textos e ordem preservados, metadados mais compactos, mesmo PDF e um único pedido de análise. |
 | Upload legado e documentos | Zero chamadas de IA | Upload mantém sua finalidade. A arquitetura continua sem enviar anexos ao LLM. |
@@ -120,7 +124,7 @@ As comparações locais separam tamanho de material enviado, quantidade de requi
 | Textos nos lotes de embeddings | 19 | 9 |
 | Material JSON em relatório com as mesmas 64 mensagens | 9.052 bytes | 7.388 bytes |
 
-Nos três cenários que precisavam da recuperação (continuação, dúvida complexa e dificuldade recente), as duas memórias selecionadas foram as mesmas. A saudação e a definição autônoma dispensaram a busca. O cache vetorial, a reparação de entradas inválidas e o isolamento por aluno também foram exercitados com SQLite. O teste HTTP verificou o contexto de continuidade, a regra de código do NativeWind, a reformulação, o streaming, a recuperação após timeout, a geração local do PDF, o teto de entrada e a reversão por variáveis de ambiente.
+Nos três cenários que precisavam da recuperação (continuação, dúvida complexa e dificuldade recente), as duas memórias selecionadas foram as mesmas. A saudação e a definição autônoma dispensaram a busca. O cache vetorial, a reparação de entradas inválidas e o isolamento por aluno também foram exercitados com SQLite. A comparação HTTP cobre contexto de continuidade, entrega de código sem reescrita, streaming, interrupção, geração local de PDF e reenvio identificado.
 
 Em uma execução local, as três etapas claras de cadastro levaram 10,73 ms na linha de base e 9,90 ms na versão otimizada com transporte simulado. O teste não inclui a rede nem o processamento da OpenAI, então o resultado mede somente esse ambiente de teste. A redução de três chamadas externas elimina esse tempo de rede e inferência no cadastro claro, mas a diferença na latência da Hostinger ainda precisa de medição.
 
@@ -156,4 +160,4 @@ O conteúdo medido exclui o enquadramento do protocolo, a saída, os tokens em c
 3. Se a recuperação adaptativa, o cadastro local, a proteção contra reenvios ou o contexto do relatório degradarem algum fluxo, desative a otimização correspondente pelas variáveis acima. Remova orçamentos personalizados para voltar à configuração padrão. Remova a variável de métricas para desligar a coleta. As mudanças de montagem não exigem recriar o histórico ou os vetores SQLite.
 4. Para reversão integral, reimplante a revisão anterior sem remover memória, vetores ou o diretório privado de medição. Antes de voltar, confirme que os backups e o acesso do PHP continuam íntegros. Nenhum dado real deve ser sobrescrito durante a avaliação.
 
-Próximas evoluções avaliáveis após dados suficientes: comparar qualidade de recuperação desativada versus ativa em casos anonimizados, calibrar orçamentos por duração e assunto e medir frequência e benefício das reformulações. Uma nova arquitetura de armazenamento, um novo modelo ou um avaliador pago só se justificam com evidência comparável.
+As medições podem comparar qualidade com a recuperação ativa ou desativada em casos anonimizados e estimar o consumo pelo tamanho das respostas.

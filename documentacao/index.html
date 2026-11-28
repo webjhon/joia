@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -41,7 +41,7 @@
     </aside>
     <main class="col-lg-9 col-xl-10 wiki-main" id="conteudo-principal">
     <section class="page-hero">
-      <span class="eyebrow">DOCUMENTAÇÃO JOIA 1.21</span>
+      <span class="eyebrow">DOCUMENTAÇÃO JOIA 1.22</span>
       <h1>JOIA por dentro</h1>
       <p>Manual de uso, arquitetura e operação da assistente de aprendizagem em programação.</p>
       <img src="../assets/readme/joia-banner.svg" alt="Banner da JOIA, educação e inteligência artificial">
@@ -49,31 +49,30 @@
 <section>
 <h2>O que a JOIA faz</h2>
 <p>A JOIA ajuda o aluno a entender a dúvida atual, decidir o próximo passo e verificar o resultado. Ela usa a conversa recente, o percurso do próprio estudante e referências pertinentes para dar orientações concretas. O professor pode consultar um relatório do percurso pela área reservada.</p>
-<div class="metrics"><div><b>PHP</b><span>sessões, dados e API</span></div><div><b>JSON</b><span>memória privada do aluno</span></div><div><b>SQLite</b><span>índice vetorial opcional</span></div><div><b>NDJSON</b><span>parágrafos no chat</span></div></div>
+<div class="metrics"><div><b>PHP</b><span>sessões, dados e API</span></div><div><b>JSON</b><span>memória privada do aluno</span></div><div><b>SQLite</b><span>índice vetorial opcional</span></div><div><b>NDJSON</b><span>texto progressivo no chat</span></div></div>
 </section>
 <section>
 <h2>Da pergunta ao próximo passo</h2>
 <ol class="steps">
 <li><b>Identificação</b><span>O navegador apresenta cadastro e retomada por código. O servidor vincula a sessão ao registro do aluno.</span></li>
-<li><b>Contexto</b><span>A JOIA identifica o trecho de código relevante, seleciona referências locais e consulta a memória vetorial individual quando a dúvida pede continuidade.</span></li>
-<li><b>Resposta</b><span>Consultas precisas ao catálogo e explicações técnicas restritas podem usar regras locais. O chat geral envia o contexto pertinente ao modelo de texto.</span></li>
-<li><b>Revisão</b><span>A política pedagógica avalia a resposta. O chat publica parágrafos que podem aparecer isoladamente e guarda eventuais caixas de código até a confirmação final.</span></li>
-<li><b>Percurso</b><span>O histórico recebe o texto final. O caderno permanece separado e o relatório docente usa os registros do aluno selecionado.</span></li>
+<li><b>Contexto</b><span>A JOIA inclui o histórico recente do aluno autenticado, seleciona referências locais pertinentes e pode recuperar trocas anteriores pelo índice vetorial.</span></li>
+<li><b>Resposta</b><span>O modelo gera a resposta. O chat apresenta progressivamente o Markdown recebido, incluindo blocos de código completos.</span></li>
+<li><b>Percurso</b><span>O histórico recebe o texto do modelo. O caderno permanece separado e o relatório docente usa os registros do aluno selecionado.</span></li>
 </ol>
 </section>
 <section>
 <h2>Escolha um ponto de partida</h2>
 <div class="card-grid">
 <a class="topic-card" href="frontend.html"><b>Usar a interface</b><span>Cadastro, código de acesso, chat, caderno, voz e avatar.</span></a>
-<a class="topic-card" href="backend.html"><b>Acompanhar uma requisição</b><span>Rotas, estados e entrega progressiva de parágrafos.</span></a>
-<a class="topic-card" href="inteligencia-artificial.html"><b>Entender as decisões de resposta</b><span>Instruções, recuperação de contexto, materiais e pistas de código.</span></a>
-<a class="topic-card" href="dados-relatorios.html"><b>Entender os dados</b><span>Backup do percurso, memória vetorial, cotas e relatórios.</span></a>
+<a class="topic-card" href="backend.html"><b>Acompanhar uma requisição</b><span>Rotas, estados e entrega progressiva de texto.</span></a>
+<a class="topic-card" href="inteligencia-artificial.html"><b>Entender as decisões de resposta</b><span>Instruções, recuperação de contexto, materiais e código nas respostas.</span></a>
+<a class="topic-card" href="dados-relatorios.html"><b>Entender os dados</b><span>Backup do percurso, memória vetorial e relatórios.</span></a>
 <a class="topic-card" href="seguranca-operacao.html"><b>Operar a aplicação</b><span>Ambiente, configuração privada, métricas e diagnóstico.</span></a>
 <a class="topic-card" href="referencia.html"><b>Encontrar um arquivo</b><span>Responsabilidades dos arquivos de aplicação, da wiki e dos testes.</span></a>
 </div>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="frontend.html">Frontend →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="frontend.html">Frontend →</a></footer>
     </main>
   </div>
 </div>

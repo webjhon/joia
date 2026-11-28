@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -61,7 +61,7 @@ php -S 127.0.0.1:8000 -t .</code></pre></div>
 <tr><td><code>JOIA_METRICS_DIR</code></td><td>Diretório privado preexistente, com acesso só para a conta do serviço. Ativa os registros de uso e latência.</td></tr>
 <tr><td><code>JOIA_API_PRICES_JSON</code></td><td>Preços em USD por milhão de tokens. A estimativa local fica separada do faturamento.</td></tr>
 <tr><td><code>JOIA_METRICS_TZ</code></td><td>Fuso usado para os períodos no CLI de métricas. O padrão é <code>America/Sao_Paulo</code>.</td></tr>
-<tr><td><code>JOIA_TOKEN_BUDGETS_JSON</code></td><td>Limites opcionais por operação. Ajuste em ambiente de teste para medir o efeito antes de usar com uma turma.</td></tr>
+<tr><td><code>JOIA_TOKEN_BUDGETS_JSON</code></td><td>Orçamentos opcionais para cadastro e relatórios. Embeddings usam a opção de entrada.</td></tr>
 <tr><td><code>JOIA_ADAPTIVE_RAG</code>, <code>JOIA_COMPACT_REPORT</code>, <code>JOIA_LOCAL_ONBOARDING</code>, <code>JOIA_REQUEST_DEDUP</code></td><td>O valor <code>0</code> desativa a otimização correspondente. Consulte as condições e exemplos na auditoria de uso.</td></tr>
 </tbody></table></div><p>As configurações opcionais, os formatos JSON e os procedimentos de comparação estão detalhados na <a href="otimizacao-api.md">auditoria técnica de consumo</a>.</p>
 </section>
@@ -78,7 +78,7 @@ php -S 127.0.0.1:8000 -t .</code></pre></div>
 <tr><td>A pergunta fica aguardando confirmação</td><td>Sessão PHP, método e endpoint da requisição. Consulte o primeiro evento NDJSON quando o chat usa streaming.</td></tr>
 <tr><td>Todos os parágrafos chegam juntos</td><td>Buffering e compressão do PHP ou do proxy. Compare tempo entre os eventos de início, explicação, parágrafos e conclusão.</td></tr>
 <tr><td>O contexto antigo não aparece</td><td>Primeiro verifique se a retomada associou o mesmo aluno. Depois confira <code>JOIA_VECTOR_DIR</code>, PDO SQLite e as métricas de recuperação. Sem vetores, o chat continua com o histórico recente.</td></tr>
-<tr><td>Uma caixa de código não aparece</td><td>Aplique os critérios pedagógicos, confira se o assunto permanece relacionado e considere a cota diária do aluno. A prosa continua disponível.</td></tr>
+<tr><td>Uma caixa de código não aparece</td><td>Confira o Markdown da resposta recebida e o estado de interrupção do chat. Teste a renderização com dados sintéticos.</td></tr>
 <tr><td>O caderno informa conflito</td><td>Houve edição em outra revisão. Preserve o texto local e reabra a versão salva antes de editar novamente.</td></tr>
 <tr><td>O relatório não baixa</td><td>Volte à sessão que o gerou. O endereço do PDF depende da referência temporária nessa sessão.</td></tr>
 <tr><td>A métrica está ausente</td><td>Confira a pasta privada e suas permissões. Em um stream interrompido, a API pode terminar sem o evento de uso.</td></tr>
@@ -89,7 +89,7 @@ python3 tests/compare_api.py
 php tests/compare_rag.php includes/memoria_vetorial.php</code></pre></div>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="referencia.html">Mapa do projeto →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="referencia.html">Mapa do projeto →</a></footer>
     </main>
   </div>
 </div>

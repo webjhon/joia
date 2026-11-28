@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -50,8 +50,7 @@
 <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Arquivo</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
 <tr><td><code>index.html</code></td><td>Interface e versão do chat. Organiza cadastro, retomada, mensagens, stream, caderno, voz, avatar e ações do professor. Veja o <a href="frontend.html">guia de frontend</a>.</td></tr>
 <tr><td><code>teste_openai.php</code></td><td>Controla sessão, valida entrada e despacho, monta o contexto, chama o provedor quando necessário, salva o percurso e emite relatórios. Veja as <a href="backend.html#rotas">rotas</a>.</td></tr>
-<tr><td><code>treinamento.txt</code></td><td>Define identidade, comunicação, abordagem pedagógica, temas e expectativas de relatório para o modelo.</td></tr>
-<tr><td><code>NEGATIVEPROMPTS.TXT</code></td><td>Explicita as restrições de resposta que complementam o treinamento.</td></tr>
+<tr><td><code>treinamento.txt</code></td><td>Instrução breve de identidade e continuidade pelo histórico do aluno.</td></tr>
 <tr><td><code>config.local.example.php</code></td><td>Expõe o formato da configuração local com valor vazio.</td></tr>
 <tr><td><code>upload_temp.php</code></td><td>Aceita imagens e áudios no upload legado e remove itens expirados. A interface de chat trabalha sem essa rota.</td></tr>
 <tr><td><code>.gitignore</code></td><td>Identifica o que deve permanecer fora do controle de versão, incluindo configurações e memórias privadas.</td></tr>
@@ -60,12 +59,11 @@
 <section>
 <h2>Módulos do servidor</h2>
 <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Arquivo</th><th scope="col">Responsabilidade</th></tr></thead><tbody>
-<tr><td><code>includes/streaming.php</code></td><td>Lê eventos do provedor, gerencia o envio NDJSON e conserva parágrafos transmitidos durante a revisão.</td></tr>
+<tr><td><code>includes/streaming.php</code></td><td>Lê eventos do provedor e gerencia o envio NDJSON do texto recebido.</td></tr>
 <tr><td><code>includes/llm_context.php</code></td><td>Calcula orçamento conservador de entrada, evita pares redundantes no contexto e formata evidências de relatório.</td></tr>
 <tr><td><code>includes/memoria_vetorial.php</code></td><td>Decide quando vale consultar a memória do aluno, calcula ou reaproveita vetores e classifica resultados por similaridade.</td></tr>
-<tr><td><code>includes/referencias_tecnicas.php</code></td><td>Localiza expressões no código recente e referências técnicas por intenção e termos. Oferece explicações locais em situações específicas.</td></tr>
-<tr><td><code>includes/materiais_didaticos.php</code></td><td>Mantém o catálogo curado, seleciona aulas pertinentes e responde consultas explícitas de localização.</td></tr>
-<tr><td><code>includes/pedagogical_snippets.php</code></td><td>Reconhece tema e continuidade, valida caixas curtas e oferece uma orientação contextual em prosa quando necessário.</td></tr>
+<tr><td><code>includes/referencias_tecnicas.php</code></td><td>Localiza expressões no código recente e seleciona referências técnicas para o contexto.</td></tr>
+<tr><td><code>includes/materiais_didaticos.php</code></td><td>Mantém o catálogo curado e seleciona aulas pertinentes para o contexto e os títulos no chat.</td></tr>
 <tr><td><code>includes/api_metrics.php</code></td><td>Normaliza o uso retornado pelo provedor, estima custo quando há dados e grava telemetria privada opcional.</td></tr>
 <tr><td><code>scripts/usage.php</code></td><td>Exibe agregados de consumo por dia, semana ou mês pela linha de comando.</td></tr>
 </tbody></table></div>
@@ -99,7 +97,7 @@
 </tbody></table></div>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="index.html">Visão geral →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="index.html">Visão geral →</a></footer>
     </main>
   </div>
 </div>

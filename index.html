@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<!-- Versão 1.21. -->
-<meta name="application-version" content="1.21" />
+<!-- Versão 1.22. -->
+<meta name="application-version" content="1.22" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOIA • Terminal Educacional</title>
@@ -564,7 +564,7 @@ button, input, textarea { font-family: inherit; }
     <header class="terminal-header">
       <div><b>💎 JOIA • Terminal Educacional</b></div>
       <div class="terminal-tagline" style="color:#8cf0d3;">O QUE DESEJA APRENDER</div>
-      <small class="app-version" title="Versão da JOIA">v1.21</small>
+      <small class="app-version" title="Versão da JOIA">v1.22</small>
     </header>
 
     <section id="output" class="output">
@@ -624,7 +624,7 @@ button, input, textarea { font-family: inherit; }
 
 <script src="./assets/chat/prism.min.js?v=1.30.0"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","talkinghead":"./assets/avatar/talkinghead.mjs"}}</script>
-<script src="./assets/chat/markdown.js?v=1.21"></script>
+<script src="./assets/chat/markdown.js?v=1.22"></script>
 <script>
 window.lucide?.createIcons();
 
@@ -663,7 +663,6 @@ async function readJoiaStream(body, onUpdate){
   const decoder = new TextDecoder();
   let pending = "";
   let completed = false;
-  let paragraphMode = false;
   try {
     while(true){
       const {value, done} = await reader.read();
@@ -680,18 +679,12 @@ async function readJoiaStream(body, onUpdate){
         if(!event || typeof event.type !== "string" || (event.type === "delta" && typeof event.text !== "string")){
           throw new Error("O servidor enviou uma parte inválida da resposta.");
         }
-        if(event.type === "start") paragraphMode = event.mode === "paragraphs";
-        if(paragraphMode && ["start", "phase", "delta", "retry"].includes(event.type)) onUpdate(event);
+        if(["start", "phase", "delta"].includes(event.type)) onUpdate(event);
         if(event.type === "error") throw new Error(event.erro);
         if(event.type === "done"){
-          if(typeof event.resposta !== "string" || !event.resposta.trim()){
+          if(typeof event.resposta !== "string"){
             throw new Error("O servidor não confirmou o texto final.");
           }
-          let openFence = false;
-          for(const fence of event.resposta.matchAll(/^[\t ]*```([\w.+-]*)[\t ]*\r?$/gm)){
-            if(!openFence || !fence[1]) openFence = !openFence;
-          }
-          if(openFence) throw new Error("O servidor enviou uma caixa de código incompleta.");
           completed = true;
           return event;
         }
@@ -880,6 +873,7 @@ function renderReply(text, downloadUrl = "", streamedReply = null, references = 
     div.appendChild(link);
   }
   if(autoSpeak.checked) speakText(text);
+  return div;
 }
 
 function selectJoiaVoice(){
@@ -967,8 +961,7 @@ async function sendMsg(){
   let streamedReply = null;
   let streamedContent = null;
   let streamedText = "";
-  let pendingText = "";
-  let hasReplyIcon = false;
+  let previewFrame = 0;
   let question = null;
   function confirmQuestion(){
     if(question) return;
@@ -976,20 +969,31 @@ async function sendMsg(){
     question = renderMessage(msg, "user");
     thinking.before(question);
   }
-  function appendReplyFragment(text){
-    if(!text.trim()) return;
-    replyStatus.remove();
+  function updateReplyPreview(text, highlight){
     if(!streamedReply){
+      if(!text.trim()) return;
       confirmQuestion();
       thinking.remove();
       streamedReply = renderMessage("", "joia");
       streamedContent = streamedReply.querySelector(".joia-markdown");
       streamedContent.classList.add("joia-stream-preview");
     }
-    const fragment = renderJoiaMarkdown(text, {addTipIcon: !hasReplyIcon});
-    hasReplyIcon ||= /\p{Extended_Pictographic}/u.test(fragment.textContent);
-    streamedContent.append(...fragment.childNodes);
-    streamedText += text;
+    // Render the accumulated Markdown so a fence, list or table can span any
+    // number of events. Keep nodes whose structure has already stabilized.
+    const fragment = renderJoiaMarkdown(text, {highlight});
+    let current = streamedContent.firstChild;
+    for(const node of [...fragment.childNodes]){
+      if(current){
+        const next = current.nextSibling;
+        if(!current.isEqualNode(node)) current.replaceWith(node);
+        current = next;
+      } else streamedContent.append(node);
+    }
+    while(current){
+      const next = current.nextSibling;
+      current.remove();
+      current = next;
+    }
   }
   try {
     const data = await requestJoia({mensagem: msg, request_id: crypto.randomUUID?.()}, event => {
@@ -1002,40 +1006,31 @@ async function sendMsg(){
         if(event.phase === "answer") thinking.querySelector('[role="status"]').textContent = "Preparando a explicação…";
         return;
       }
-      if(event.type === "retry"){
-        const status = streamedReply ? replyStatus : thinking.querySelector('[role="status"]');
-        status.textContent = "Ajustando os próximos passos…";
-        if(streamedReply) streamedReply.append(status);
-        return;
-      }
-      pendingText += event.text;
-      let end = 0;
-      // Publish complete paragraphs. Leave a list, table or code fence for the
-      // confirmed final text so its Markdown renders as a single structure.
-      for(const separator of pendingText.matchAll(/\r?\n[\t ]*\r?\n/g)){
-        const paragraph = pendingText.slice(end, separator.index).trim();
-        if(paragraph.includes("|") || /^[\t ]*(?:```|[-+*][\t ]|\d+[.)][\t ])/m.test(paragraph)) break;
-        if(/^#{1,6}[\t ]+[^\r\n]+$/.test(paragraph)) continue;
-        end = separator.index + separator[0].length;
-      }
-      appendReplyFragment(pendingText.slice(0, end));
-      pendingText = pendingText.slice(end);
+      streamedText += event.text;
+      if(!previewFrame) previewFrame = requestAnimationFrame(() => {
+        previewFrame = 0;
+        updateReplyPreview(streamedText, false);
+      });
     });
-    if(streamedReply){
-      if(data.resposta.startsWith(streamedText)) appendReplyFragment(data.resposta.slice(streamedText.length));
-      else if(data.resposta !== streamedText.trimEnd()) throw new Error("O texto final divergiu dos parágrafos já exibidos.");
-    }
-    replyStatus.remove();
+    cancelAnimationFrame(previewFrame);
+    if(streamedReply) updateReplyPreview(data.resposta, true);
     if(!adminTokenPending && data.etapa !== "admin_token") confirmQuestion();
     userInput.value = "";
     document.getElementById("welcome")?.remove();
     adminTokenPending = data.etapa === "admin_token";
-    renderReply(data.resposta, data.download || "", streamedReply, data.referencias);
+    const reply = renderReply(data.resposta, data.download || "", streamedReply, data.referencias);
+    if(data.interrompida === true){
+      replyStatus.textContent = "⚠️ A geração terminou antes de concluir a resposta.";
+      reply.append(replyStatus);
+    }
     if(data.codigo) enterStudent(data);
   } catch (error) {
+    cancelAnimationFrame(previewFrame);
+    if(streamedText) updateReplyPreview(streamedText, true);
     thinking.remove();
     if(adminTokenPending) userInput.value = "";
     if(streamedReply){
+      lastJoiaAnswer = streamedText;
       streamedContent.classList.remove("joia-stream-preview");
       replyStatus.textContent = `⚠️ Resposta interrompida. ${error.message}`;
       streamedReply.append(replyStatus);

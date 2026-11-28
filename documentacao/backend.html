@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -54,31 +54,30 @@
 <tr><td>POST <code>acao: retomar</code></td><td>Código pessoal, <code>conversation_id</code> e preferência de histórico.</td><td>Valida o código, associa o registro do aluno à sessão e devolve o caderno.</td></tr>
 <tr><td>POST <code>acao: salvar_anotacoes</code></td><td>Anotações e revisão conhecidas pelo cliente.</td><td>Nova revisão, ou <code>409</code> se houve outra edição. Limite de 100.000 bytes.</td></tr>
 <tr><td>POST <code>acao: reset</code></td><td><code>conversation_id</code>.</td><td>Retorna à entrada e remove o estado corrente de conversa e PDF da sessão.</td></tr>
-<tr><td>POST <code>mensagem</code></td><td>Mensagem, identificador de conversa e <code>request_id</code> opcional.</td><td>Transita cadastro, chat ou área docente conforme a sessão. Usa JSON ou NDJSON no chat.</td></tr>
+<tr><td>POST <code>mensagem</code></td><td>Mensagem, identificador de conversa e <code>request_id</code> opcional.</td><td>Transita cadastro, chat ou área docente conforme a sessão. O chat autenticado aceita texto e código longos e devolve JSON ou NDJSON.</td></tr>
 <tr><td>GET <code>?pdf=…</code></td><td>Referência emitida pelo fluxo docente.</td><td>PDF temporário disponível apenas na sessão que o solicitou.</td></tr>
 </tbody></table></div>
 </section>
 <section id="streaming">
 <h2>Como uma resposta progride</h2>
-<p>Para o chat progressivo, o navegador solicita <code>application/x-ndjson</code>. Cada linha é um objeto JSON. O backend inicia o fluxo antes de buscar contexto e só libera a caixa de código após validar o conteúdo e persistir a resposta com a cota. O adaptador lê o <code>finish_reason</code> da API no streaming e em JSON. A revisão trata cortes e listas que começam no meio, usando uma única reformulação quando a recuperação local não resolve e preservando os parágrafos já publicados.</p>
+<p>Para o chat progressivo, o navegador solicita <code>application/x-ndjson</code>. Cada linha é um objeto JSON. O backend inicia o fluxo antes de buscar contexto, encaminha o texto recebido da OpenAI e salva o conteúdo acumulado no histórico do aluno. O adaptador lê o <code>finish_reason</code> da API no streaming e em JSON. Quando a geração é interrompida e há texto disponível, a resposta leva <code>interrompida: true</code> e preserva o texto recebido.</p>
 <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Evento</th><th scope="col">Uso na interface</th></tr></thead><tbody>
 <tr><td><code>start</code></td><td>Confirma o recebimento e sinaliza o preparo de contexto.</td></tr>
 <tr><td><code>phase</code></td><td>Dá visibilidade à preparação da explicação.</td></tr>
-<tr><td><code>delta</code></td><td>Acrescenta trecho publicável à resposta.</td></tr>
-<tr><td><code>retry</code></td><td>Indica reformulação após a revisão pedagógica.</td></tr>
-<tr><td><code>done</code></td><td>Entrega resposta integral, etapa e, quando selecionados, títulos de material.</td></tr>
+<tr><td><code>delta</code></td><td>Acrescenta um trecho de texto recebido do modelo.</td></tr>
+<tr><td><code>done</code></td><td>Entrega o texto acumulado, a etapa, os títulos de material selecionados e a marca de interrupção quando aplicável.</td></tr>
 <tr><td><code>error</code></td><td>Sinaliza interrupção após o início do streaming. O texto já exibido permanece.</td></tr>
 </tbody></table></div><p>Cadastro, anotações, retomada e relatórios retornam JSON. Clientes que não solicitam NDJSON recebem a resposta completa do chat em JSON.</p>
 </section>
 <section id="processamento">
 <h2>Processamento local e chamadas externas</h2>
 <ul><li>Cadastro claro, deduplicação, consulta direta ao catálogo, explicação determinística aplicável, validações e PDF podem ser processados no PHP.</li>
-<li><code>callOpenAI()</code> executa a geração textual com <code>gpt-4o-mini</code>. A reformulação, quando necessária, conserva os parágrafos já publicados.</li>
+<li><code>callOpenAI()</code> executa a geração textual com <code>gpt-4o-mini</code>. Cada novo turno de conversa tem uma chamada de geração. A busca vetorial opcional é uma operação distinta.</li>
 <li><code>joiaEmbeddings()</code> consulta <code>text-embedding-3-small</code> para a busca individual opcional. A seleção sobre conceitos técnicos e materiais do professor roda localmente.</li>
 <li><code>upload_temp.php</code> é uma rota legada de imagens e áudio. O chat atual funciona pelo endpoint principal e não envia anexos à OpenAI.</li></ul>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="inteligencia-artificial.html">Inteligência artificial →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="inteligencia-artificial.html">Inteligência artificial →</a></footer>
     </main>
   </div>
 </div>

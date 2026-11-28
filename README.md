@@ -15,14 +15,9 @@
 ## Sobre o projeto
 
 A **JOIA** é uma assistente educacional criada para apoiar estudantes em suas
-experiências com programação e inteligência artificial. Mais do que entregar
-respostas, o projeto busca transformar dúvidas em oportunidades de aprendizado,
-conduzindo cada aluno por um caminho de investigação, reflexão e descoberta.
-
-Sua proposta combina a agilidade da IA com uma orientação pedagógica próxima.
-Cada conversa considera o contexto do estudante e favorece explicações graduais,
-pistas e perguntas que estimulem o raciocínio — sem substituir o processo de
-aprender.
+experiências com programação e inteligência artificial. Cada resposta considera
+o histórico do próprio aluno para dar continuidade às suas dúvidas, tentativas
+e projetos.
 
 ## Propósito
 
@@ -33,7 +28,8 @@ visão mais clara de sua trajetória.
 
 Seus princípios são:
 
-- **orientar antes de responder**, valorizando a construção do conhecimento;
+- **responder à dúvida no contexto do estudante**, valorizando a construção do
+  conhecimento;
 - **respeitar o ritmo de cada estudante**, reconhecendo diferentes formas de
   aprender;
 - **incentivar a curiosidade**, a experimentação e o pensamento crítico;
@@ -59,7 +55,7 @@ cada etapa. As versões públicas seguem uma numeração simples e progressiva,
 facilitando a identificação de mudanças relevantes na experiência, nas
 orientações pedagógicas e nos recursos de acompanhamento.
 
-> **Versão atual: 1.21**
+> **Versão atual: 1.22 · Marco zero das respostas**
 
 Cada nova versão representa um ciclo de aperfeiçoamento. Mais do que adicionar
 funcionalidades, o objetivo é refinar a qualidade das interações, a segurança
@@ -103,8 +99,9 @@ a arquitetura, as estratégias de recuperação e a operação.
 
 ## Memória vetorial dos alunos
 
-O chat pode recuperar até duas trocas anteriores relevantes do mesmo cadastro.
-Quando encontra correspondências, envia ao modelo essas trocas, as quatro
+O chat consulta a memória do aluno autenticado a cada resposta. A janela padrão
+inclui até 12 mensagens recentes. Quando a busca vetorial encontra
+correspondências, o chat envia até duas trocas anteriores relevantes, as quatro
 mensagens mais recentes e a pergunta atual. O histórico completo continua no
 JSON privado do aluno e segue disponível para os relatórios.
 
@@ -148,16 +145,12 @@ do aluno após o acesso.
 ## Respostas progressivas
 
 No chat do aluno, a pergunta permanece visível durante o envio. O PHP confirma
-o recebimento antes de preparar o contexto e recebe o stream da OpenAI. Os
-parágrafos autônomos seguem em eventos NDJSON antes de a geração terminar.
-Caixas, tabelas e listas são renderizadas como estruturas completas. Se a API
-atingir o limite de saída ou a revisão encontrar uma parte incompleta, a JOIA
-pode aproveitar os parágrafos já enviados e pedir uma única continuação ao
-modelo. Após a confirmação, o navegador acrescenta qualquer trecho final ainda
-ausente, preservando o que já está na tela. Se a conexão cair, o chat mantém o
-texto visível e marca a interrupção. O
-histórico, as anotações e a leitura em voz alta usam a resposta final. Cadastro,
-relatórios e clientes que pedem JSON continuam usando respostas completas.
+o recebimento antes de preparar o contexto e encaminha os trechos enviados
+pela OpenAI em eventos NDJSON. O navegador monta a resposta progressivamente e
+formata o Markdown. O histórico, as anotações e a leitura em voz alta usam o
+texto recebido. Se a geração terminar antes da conclusão, o chat mantém o
+texto disponível e sinaliza a interrupção.
+Clientes que pedem JSON recebem o texto em uma única resposta.
 
 Para confirmar o streaming em uma hospedagem, verifique se o navegador recebe
 eventos progressivamente na requisição a `teste_openai.php`. Se todos os eventos
@@ -165,20 +158,14 @@ chegarem juntos, verifique o buffering de saída do PHP e da camada de proxy ou
 compressão da hospedagem. A busca de contexto ocorre antes de o modelo começar
 a gerar texto.
 
-## Pistas curtas de código
+## Código nas respostas
 
-Quando ajuda a responder à dúvida, a JOIA pode mostrar uma caixa com até quatro
-linhas de NativeWind ou Animated do React Native, inclusive para quem está
-começando. A caixa também pode ilustrar a combinação das duas tecnologias.
-Pedidos de continuação retomam o objetivo mais recente na conversa. São até
-três caixas somadas por aluno por dia, no horário de São
-Paulo. O contador fica na memória privada do aluno e vale em outros navegadores
-ou dispositivos quando ele usa seu código. Respostas que ficam em prosa e
-reenvios do mesmo pedido não consomem a cota. A interface exibe o código aprovado
-em uma caixa com a linguagem e o destaque de sintaxe, depois que a cota e a
-resposta são salvas juntas. Dúvidas sobre hierarquia de `View` em NativeWind
-podem receber uma explicação local e um exemplo revisado de contêiner e filhos
-diretos, inclusive quando o aluno pede o exemplo na mensagem seguinte.
+No marco zero, a JOIA usa um treinamento breve focado na continuidade pelo
+histórico. O chat encaminha a resposta do modelo, incluindo blocos completos,
+arquivos de exemplo e soluções em qualquer linguagem. A aplicação não aplica
+cota de código, restrição de assunto, limite de linhas ou teto local de tokens
+ao chat. O navegador apresenta as caixas de código em Markdown e usa destaque
+de sintaxe nas linguagens reconhecidas.
 
 ## Consumo da API
 
@@ -186,14 +173,13 @@ diretos, inclusive quando o aluno pede o exemplo na mensagem seguinte.
 
 ## Referências da conversa e materiais do professor
 
-Quando a dúvida aponta para um trecho de código já mostrado, a JOIA examina
-o próprio trecho e tenta esclarecer o efeito no contexto. Para consultas
-conceituais, o [acervo técnico local](documentacao/inteligencia-artificial.html#contexto)
-ajuda a selecionar explicações pertinentes. Esse acervo complementa a conversa
-recente, os materiais do professor e a memória individual do aluno.
+Quando a dúvida aponta para um trecho de código já mostrado, a JOIA pode
+incluí-lo no contexto do modelo. O [acervo técnico local](documentacao/inteligencia-artificial.html#contexto)
+acrescenta referências pertinentes à conversa recente, aos materiais do
+professor e à memória individual do aluno.
 
 Os materiais do professor usam um catálogo local em
 `includes/materiais_didaticos.php`. Perguntas sobre onde encontrar uma aula
-podem receber o título, orientação de localização e um objetivo para estudo.
-O chat mostra títulos em texto simples e segue as regras pedagógicas sobre
-exercícios, links e arquivos.
+ajudam a selecionar o título, a orientação de localização e o objetivo para
+estudo. Esses dados integram o contexto que o modelo recebe, e o chat mostra os
+títulos associados em texto simples.

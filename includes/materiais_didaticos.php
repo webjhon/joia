@@ -3,52 +3,51 @@ declare(strict_types=1);
 
 function joiaTeachingMaterials(): array
 {
-    // Resumos editoriais das aulas indicadas pelo professor. URLs e arquivos
-    // das aulas não são enviados ao modelo nem ao frontend.
+    // Resumos editoriais e seções das aulas indicadas pelo professor.
     return [
         'animated_jump' => [
             'titulo' => 'React Native 01 · O sapo que pula',
-            'contexto' => 'O exemplo liga o valor animado `altura` ao deslocamento vertical com `translateY`. O valor começa em zero, fica negativo na subida e volta a zero na descida. `Animated.sequence` organiza as duas etapas, e o contador só avança após a aterrissagem. Para conferir o raciocínio, altere somente o tempo da descida e observe que a altura permanece igual.',
+            'contexto' => 'O exemplo liga o valor animado `altura` ao deslocamento vertical com `translateY`. O valor começa em zero, fica negativo na subida e volta a zero na descida. `Animated.sequence` organiza as duas etapas, e o contador só avança após a aterrissagem. Alterar o tempo da descida muda a duração, com a mesma altura.',
             'localizador' => 'O que acontece na tela',
         ],
         'animated_score' => [
             'titulo' => 'React Native 03 · Conquista desbloqueada',
-            'contexto' => 'A pontuação e a escala do ícone têm papéis diferentes. A pontuação determina a conquista, e a escala faz o ícone crescer e voltar ao tamanho original. Compare o comportamento um ponto antes, na meta e um ponto depois.',
+            'contexto' => 'A pontuação determina a conquista, e a escala faz o ícone crescer e voltar ao tamanho original. O material aborda o comportamento um ponto antes, na meta e um ponto depois.',
             'localizador' => 'O que acontece na tela',
         ],
         'animated_bridge' => [
             'titulo' => 'Sapo na Ponte · Atividade dos alunos',
-            'contexto' => 'Separe o deslocamento do sapo da posição da bolinha. A etapa 3 decide o acerto no instante do toque, e a etapa 4 usa o valor animado para subir e voltar a zero antes de atualizar o placar. Verifique que a régua pausa durante o salto e que dois toques rápidos não contam duas tentativas.',
+            'contexto' => 'O deslocamento do sapo e a posição da bolinha são valores distintos. A etapa 3 decide o acerto no instante do toque, e a etapa 4 usa o valor animado para subir e voltar a zero antes de atualizar o placar. A régua pausa durante o salto e dois toques rápidos contam como uma tentativa.',
             'localizador' => '4 · Dê movimento ao sapo',
         ],
         'node' => [
             'titulo' => 'Bem-vindo ao Node.js — Guia SENAC para começar o React Native',
-            'contexto' => 'O guia situa o Node como ambiente para as ferramentas do React Native. Compare o npm, que administra as dependências do projeto, com o npx, que executa uma ferramenta de linha de comando. Para um problema de terminal no Windows, consulte também a parte sobre CMD e PATH.',
+            'contexto' => 'O guia situa o Node como ambiente para as ferramentas do React Native. O npm administra as dependências do projeto e o npx executa uma ferramenta de linha de comando. O guia também aborda CMD e PATH no Windows.',
             'localizador' => '6 Entendendo o npm e 7 Entendendo o npx',
         ],
         'nativewind' => [
             'titulo' => 'NativeWind com Expo — Tailwind para React Native',
-            'contexto' => 'Leia cada classe pelo efeito que ela descreve. O material separa a configuração do uso no componente e propõe um teste inicial. Aplique uma utilidade visual a um elemento simples antes de combinar as classes.',
+            'contexto' => 'O material relaciona cada classe ao seu efeito, separa a configuração do uso no componente e apresenta um teste inicial com uma utilidade visual em um elemento simples.',
             'localizador' => '4. Como ler uma sequência de classes',
         ],
         'visual' => [
             'titulo' => 'React Native Visual — Componentes, Estilos, Hierarquia e Layout',
-            'contexto' => 'A tela tem uma hierarquia de componentes. Identifique qual View organiza os filhos e o que cada filho deve exibir ou receber. Depois confira a direção do contêiner e qual eixo é afetado pelo alinhamento.',
+            'contexto' => 'A tela tem uma hierarquia de componentes. Uma View pode organizar os filhos, e cada filho tem seu próprio conteúdo e props. A direção do contêiner determina como o alinhamento afeta cada eixo.',
             'localizador' => '1. Modelo mental: uma tela é uma árvore',
         ],
         'first_screen' => [
             'titulo' => 'React Native com TypeScript — Minha Primeira Tela com Expo',
-            'contexto' => 'Confirme primeiro que o projeto Expo com TypeScript abre no celular pelo Expo Go. Na parte de montar a primeira tela, use textos, blocos e estilos. Mude um elemento de cada vez e confira o efeito na tela.',
+            'contexto' => 'O guia apresenta a abertura de um projeto Expo com TypeScript no celular pelo Expo Go. A primeira tela tem textos, blocos e estilos, com mudanças incrementais em cada elemento.',
             'localizador' => '1. Antes de começar',
         ],
         'apk' => [
             'titulo' => 'Gerando um APK do seu projeto Expo',
-            'contexto' => 'O roteiro prepara um build Android com EAS e usa o perfil de prévia para produzir um APK. Confira o perfil selecionado e o tipo de artefato. A compilação ocorre nos servidores do Expo.',
+            'contexto' => 'O roteiro usa o perfil de prévia para produzir um APK com EAS. O perfil de build determina o tipo de artefato. A compilação ocorre nos servidores do Expo.',
             'localizador' => '5 Gerar o APK',
         ],
         'screens' => [
             'titulo' => 'React Native — Criando várias páginas e navegando entre arquivos',
-            'contexto' => 'No roteiro, cada tela é um componente separado. O App.tsx guarda a tela ativa em estado e passa às telas uma função por props. Na parte 8, observe como uma página solicita a troca e como o App decide qual tela mostrar.',
+            'contexto' => 'No roteiro, cada tela é um componente separado. O App.tsx guarda a tela ativa em estado e passa às telas uma função por props. Na parte 8, uma página solicita a troca e o App decide qual tela mostrar.',
             'localizador' => '6. O App.tsx vai controlar qual página aparece',
         ],
     ];
@@ -118,6 +117,11 @@ function joiaTeachingMaterialOtherSubject(string $text): bool
 function joiaSelectTeachingMaterials(string $message, array $history): array
 {
     $text = normalize($message);
+    $catalog = joiaTeachingMaterials();
+    if (joiaTeachingMaterialRequest($text)
+        && preg_match('/\b(?:todos os materiais|lista dos materiais|catalogo de materiais|lista completa)\b/', $text)) {
+        return array_values($catalog);
+    }
     $keys = joiaTeachingMaterialKeys($text);
     if (!$keys && joiaTeachingMaterialFollowUp($text) && !joiaTeachingMaterialOtherSubject($text)) {
         foreach (array_reverse($history) as $turn) {
@@ -129,52 +133,8 @@ function joiaSelectTeachingMaterials(string $message, array $history): array
         }
     }
 
-    if (!$keys) return [];
-    $catalog = joiaTeachingMaterials();
+    if (!$keys && preg_match('/\b(?:quais (?:sao )?(?:os )?materiais|lista de materiais)\b/', $text)) {
+        return array_values($catalog);
+    }
     return array_map(static fn (string $key): array => $catalog[$key], $keys);
-}
-
-function joiaTeachingMaterialAnswer(string $message, array $history): ?array
-{
-    $text = normalize($message);
-    if (!joiaTeachingMaterialRequest($text)) return null;
-
-    $materials = joiaSelectTeachingMaterials($message, $history);
-    $fullCatalog = preg_match('/\b(?:todos os materiais|lista dos materiais|catalogo de materiais|lista completa)\b/', $text) === 1
-        || (!$materials && preg_match('/\b(?:quais (?:sao )?(?:os )?materiais|lista de materiais)\b/', $text));
-    if ($fullCatalog) {
-        $titles = array_column(joiaTeachingMaterials(), 'titulo');
-        return [
-            'resposta' => "Conheço estes materiais do professor João no catálogo da JOIA:\n\n- " . implode("\n- ", $titles),
-            'referencias' => [],
-        ];
-    }
-
-    if (!$materials) {
-        $topic = match (true) {
-            preg_match('/\bsql\b/', $text) === 1 => 'SQL',
-            preg_match('/\bpython\b/', $text) === 1 => 'Python',
-            preg_match('/\bflutter\b/', $text) === 1 => 'Flutter',
-            preg_match('/\bdjango\b/', $text) === 1 => 'Django',
-            preg_match('/\bhtml\b/', $text) === 1 => 'HTML',
-            preg_match('/\breanimated\b/', $text) === 1 => 'Reanimated',
-            preg_match('/\btailwind css na web\b/', $text) === 1 => 'Tailwind CSS na web',
-            default => null,
-        };
-        $answer = 'Conheço os materiais do professor João cadastrados na JOIA.';
-        if ($topic !== null) {
-            $answer .= " Ainda não encontrei no catálogo um roteiro sobre {$topic}.";
-        } else {
-            $answer .= ' Ainda não encontrei um roteiro específico para essa dúvida.';
-            if (!preg_match('/\b(?:sobre|para) [a-z0-9]/', $text)) $answer .= ' Qual assunto você quer localizar?';
-        }
-        return ['resposta' => $answer, 'referencias' => []];
-    }
-
-    $answer = 'Sim. Conheço os materiais cadastrados do professor João. Para essa dúvida:';
-    foreach ($materials as $material) {
-        $answer .= "\n\n**{$material['titulo']}**\n\n"
-            . "Procure **{$material['localizador']}**. {$material['contexto']}";
-    }
-    return ['resposta' => $answer, 'referencias' => array_column($materials, 'titulo')];
 }

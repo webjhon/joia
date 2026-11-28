@@ -1,6 +1,6 @@
 {
   "titulo": "Pistas diárias e primeiro passo em NativeWind e Animated",
-  "situacao": "aprovada",
+  "situacao": "substituida",
   "fonte": "Pedido na conversa da JOIA no Codex",
   "termos": ["pistas", "NativeWind", "React Native", "Animated", "quatro linhas", "cota diária", "primeiro passo", "iniciantes"],
   "pedidos": [
@@ -11,6 +11,7 @@
     "Manter até três pistas compartilhadas entre NativeWind e Animated por aluno a cada dia no fuso America/Sao_Paulo. Controlar a disponibilidade no servidor.",
     "Usar uma única caixa de até quatro linhas para ensinar um conceito. Manter os limites sobre soluções completas e arquivos de configuração.",
     "Oferecer a menor pista útil sem exigir palavras-chave ou demonstração prévia de entendimento. Investigar erros apenas quando houver um problema relatado.",
-    "Esta decisão substitui o limite por sessão e atualiza o formato de pistas registrado em formato-e-pistas-guiadas.json."
+    "Esta decisão substituiu o limite por sessão e atualizou o formato de pistas registrado em formato-e-pistas-guiadas.json.",
+    "O marco zero em 2026-11-28-marco-zero-respostas.json retirou a cota e os limites locais de assunto, linhas e formato para o envio de código."
   ]
 }

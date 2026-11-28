@@ -1,0 +1,17 @@
+{
+  "titulo": "Marco zero do chat e uso contínuo do histórico",
+  "situacao": "aprovada",
+  "fonte": "Pedido explícito na conversa da JOIA no Codex, 28/11/2026",
+  "termos": ["marco zero", "código", "restrições", "censura", "treinamento.txt", "negative prompt", "filtro PHP", "cota", "reformulação", "streaming", "histórico"],
+  "pedidos": [
+    "Resumo: retirar as restrições da JOIA ao envio de código e à geração de respostas, inclusive nas instruções e no filtro do chat.",
+    "Manter o uso do histórico do próprio aluno nas respostas. O professor avaliará o marco zero antes de decidir sobre eventuais restrições futuras."
+  ],
+  "decisoes": [
+    "O treinamento do chat passa a orientar o modelo brevemente sobre identidade e continuidade pelo histórico do aluno. O fluxo remove o prompt negativo, as respostas locais prontas, a reformulação pedagógica e o filtro de saída do PHP.",
+    "O chat entrega o texto recebido do modelo com blocos de código de qualquer linguagem, incluindo soluções completas. A aplicação retira cotas, limites de quantidade, assunto e linhas de código e o teto local de tokens para o chat.",
+    "A geração usa mensagens recentes do aluno autenticado. A memória vetorial individual pode acrescentar trocas mais antigas pertinentes, e os catálogos complementam o contexto com dados locais.",
+    "O PHP encaminha os trechos recebidos e grava a resposta no histórico. O navegador formata o Markdown e sinaliza interrupções quando o provedor retorna texto parcial.",
+    "Esta decisão substitui as restrições em pistas-diarias-e-primeiro-passo.json, exemplos-combinados.json, formato-nativewind.json e as etapas de reformulação e validação de resposta dos registros relacionados. O código visível, o isolamento da memória, a renderização segura e a verificação pela causa comum permanecem objetivos do projeto."
+  ]
+}

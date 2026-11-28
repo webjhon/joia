@@ -17,7 +17,7 @@
   <nav class="navbar navbar-expand-lg container-xxl" aria-label="Cabeçalho da documentação">
     <a class="navbar-brand" href="index.html"><span class="brand-gem">◆</span><b>JOIA</b><small>DOCS</small></a>
     <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Abrir menu"><span class="navbar-toggler-icon"></span></button>
-    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.21</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
+    <div class="ms-auto d-none d-lg-flex gap-2"><span class="version-pill">v1.22</span><a class="btn btn-sm btn-outline-success" href="../index.html">Abrir JOIA</a></div>
   </nav>
 </header>
 <div class="container-xxl">
@@ -49,12 +49,11 @@
 <h2>Armazenamento do aluno</h2>
 <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Dado</th><th scope="col">Local e uso</th></tr></thead><tbody>
 <tr><td>Identificação</td><td>O JSON privado guarda nome, turma ou curso, instituição e identificador interno. Para validar o código pessoal, o servidor compara o verificador criptográfico do segredo.</td></tr>
-<tr><td>Histórico</td><td>O JSON guarda mensagens finais e suas datas. A retomada do navegador abre sem exibir mensagens anteriores, mas o PHP pode aproveitá-las no contexto e no relatório.</td></tr>
+<tr><td>Histórico</td><td>O JSON guarda as mensagens e suas datas. A retomada abre o chat visualmente limpo. O PHP usa mensagens anteriores no contexto das respostas e no relatório.</td></tr>
 <tr><td>Caderno</td><td>O texto e a revisão ficam no mesmo registro. O servidor usa a revisão para evitar sobrescrever uma edição concorrente.</td></tr>
-<tr><td>Cota de pistas</td><td>O contador registra o dia no fuso de São Paulo e a quantidade de caixas de código aprovadas. Vale em diferentes sessões do mesmo aluno.</td></tr>
 <tr><td>Índice vetorial</td><td>O SQLite opcional guarda vetores, versão do modelo, hash da entrada e vínculo do aluno. O histórico JSON é a origem para reconstruir o índice.</td></tr>
 <tr><td>Sessão PHP</td><td>Vincula a conversa ao estudante, controla as etapas, protege o fluxo docente e referencia PDFs temporários.</td></tr>
-</tbody></table></div><p>O servidor grava o JSON por substituição do arquivo e usa trava nas atualizações compartilhadas. Ao salvar um turno com caixa, verifica a cota e grava a resposta completa na mesma atualização.</p>
+</tbody></table></div><p>O servidor grava o JSON por substituição do arquivo e usa trava nas atualizações compartilhadas. A pergunta e o texto recebido do modelo são gravados na mesma atualização.</p>
 </section>
 <section id="docente">
 <h2>Atendimento docente</h2>
@@ -73,7 +72,7 @@
 <li>Encerrar o acesso no navegador preserva o histórico salvo. Gerencie a retenção e o descarte de cópias e relatórios pelo procedimento da instituição responsável.</li></ul>
 </section>
 
-    <footer><b>JOIA Docs</b><span>Manual da versão 1.21</span><a href="seguranca-operacao.html">Segurança e operação →</a></footer>
+    <footer><b>JOIA Docs</b><span>Manual da versão 1.22</span><a href="seguranca-operacao.html">Segurança e operação →</a></footer>
     </main>
   </div>
 </div>
